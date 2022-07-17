@@ -1,14 +1,9 @@
+# Built-in Imports
 import os
+
+# Third-party Imports
 import numpy as np
 import cv2
-import random
-from matplotlib import pyplot as plt 
-
-from lib.visualization import plotting
-from lib.visualization.video import play_trip
-
-from tqdm import tqdm
-
 
 class VisualOdometry():
     def __init__(self, data_dir):
@@ -251,35 +246,3 @@ class VisualOdometry():
         elif (max == 1):
             # print(t)
             return R2, np.ndarray.flatten(t)
-
-
-
-def main():
-    data_dir = '../tests/data/KITTI_sequence_2'  # Try KITTI_sequence_2 too
-    vo = VisualOdometry(data_dir)
-
-
-    # play_trip(vo.images)  # Comment out to not play the trip
-
-    gt_path = []
-    estimated_path = []
-    for i, gt_pose in enumerate(tqdm(vo.gt_poses, unit="pose")):
-        if i == 0:
-            cur_pose = gt_pose
-        else:
-            q1, q2 = vo.get_matches(i)
-            transf = vo.get_pose(q1, q2)
-            cur_pose = np.matmul(cur_pose, np.linalg.inv(transf))
-            print ("\nGround truth pose:\n" + str(gt_pose))
-            print ("\n Current pose:\n" + str(cur_pose))
-            print ("The current pose used x,y: \n" + str(cur_pose[0,3]) + "   " + str(cur_pose[2,3]) )
-        gt_path.append((gt_pose[0, 3], gt_pose[2, 3]))
-        estimated_path.append((cur_pose[0, 3], cur_pose[2, 3]))
-        
-  
-    
-    plotting.visualize_paths(gt_path, estimated_path, "Visual Odometry", file_out=os.path.basename(data_dir) + ".html")
-
-
-if __name__ == "__main__":
-    main()
