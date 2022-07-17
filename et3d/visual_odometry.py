@@ -1,4 +1,5 @@
 # Built-in Imports
+from typing import Tuple
 import os
 
 # Third-party Imports
@@ -6,192 +7,117 @@ import numpy as np
 import cv2
 
 class VisualOdometry():
-    def __init__(self, data_dir):
-        self.K, self.P = self._load_calib(os.path.join(data_dir, 'calib.txt'))
-        self.gt_poses = self._load_poses(os.path.join(data_dir, 'poses.txt'))
-        self.images = self._load_images(os.path.join(data_dir, 'image_l'))
+    def __init__(self, K, P, initial_pose=np.eye(4)):
+        """
+        Create Visual Odometry Algorithm object for tracking camera pose.
+
+        Args:
+            K (np.ndarray): Intrinsic parameters
+            P (np.ndarray): Project matrix
+        """
+        # Saving input parameters
+        self.K, self.P = K, P
+
+        # Create feature extractor and matcher
         self.orb = cv2.ORB_create(3000)
         FLANN_INDEX_LSH = 6
-        index_params = dict(algorithm=FLANN_INDEX_LSH, table_number=6, key_size=12, multi_probe_level=1)
+        index_params = dict(
+            algorithm=FLANN_INDEX_LSH, 
+            table_number=6, 
+            key_size=12, 
+            multi_probe_level=1
+        )
         search_params = dict(checks=50)
         self.flann = cv2.FlannBasedMatcher(indexParams=index_params, searchParams=search_params)
 
-    @staticmethod
-    def _load_calib(filepath):
-        """
-        Loads the calibration of the camera
-        Parameters
-        ----------
-        filepath (str): The file path to the camera file
-
-        Returns
-        -------
-        K (ndarray): Intrinsic parameters
-        P (ndarray): Projection matrix
-        """
-        with open(filepath, 'r') as f:
-            params = np.fromstring(f.readline(), dtype=np.float64, sep=' ')
-            P = np.reshape(params, (3, 4))
-            K = P[0:3, 0:3]
-        return K, P
+        # Initialization values
+        self.first_step = True
+        self.previous_image = np.array([])
+        self.current_pose = initial_pose
 
     @staticmethod
-    def _load_poses(filepath):
-        """
-        Loads the GT poses
+    def _form_transf(R:np.ndarray, t:np.ndarray) -> np.ndarray:
+        """Makes a transformation matrix from the given rotation matrix and translation vector.
 
-        Parameters
-        ----------
-        filepath (str): The file path to the poses file
+        Args:
+            R (ndarray): The rotation matrix
+            t (list): The translation vector
 
-        Returns
-        -------
-        poses (ndarray): The GT poses
-        """
-        poses = []
-        with open(filepath, 'r') as f:
-            for line in f.readlines():
-                T = np.fromstring(line, dtype=np.float64, sep=' ')
-                T = T.reshape(3, 4)
-                T = np.vstack((T, [0, 0, 0, 1]))
-                poses.append(T)
-        return poses
+        Returns:
+            T (ndarray): The transformation matrix
 
-    @staticmethod
-    def _load_images(filepath):
-        """
-        Loads the images
-
-        Parameters
-        ----------
-        filepath (str): The file path to image dir
-
-        Returns
-        -------
-        images (list): grayscale images
-        """
-        image_paths = [os.path.join(filepath, file) for file in sorted(os.listdir(filepath))]
-        return [cv2.imread(path, cv2.IMREAD_GRAYSCALE) for path in image_paths]
-
-    @staticmethod
-    def _form_transf(R, t):
-        """
-        Makes a transformation matrix from the given rotation matrix and translation vector
-
-        Parameters
-        ----------
-        R (ndarray): The rotation matrix
-        t (list): The translation vector
-
-        Returns
-        -------
-        T (ndarray): The transformation matrix
         """
         T = np.eye(4, dtype=np.float64)
         T[:3, :3] = R
         T[:3, 3] = t
+
         return T
 
-    def get_matches(self, i):
+    def get_matches(
+            self, 
+            previous_image:np.ndarray, 
+            image: np.ndarray
+        ) -> Tuple[np.ndarray, np.ndarray]:
         """
-        This function detect and compute keypoints and descriptors from the i-1'th and i'th image using the class orb object
+        Detect and compute keypoints and descriptors between images.
 
-        Parameters
-        ----------
-        i (int): The current frame
+        Args:
+            previous_image (np.ndarray): image from previous step.
+            image (np.ndarray): new image.
 
-        Returns
-        -------
-        q1 (ndarray): The good keypoints matches position in i-1'th image
-        q2 (ndarray): The good keypoints matches position in i'th image
+        Returns:
+            q1 (ndarray): The keypoints matches position in i-1'th image.
+            q2 (ndarray): The keypoints matches position in i'th image.
+
         """
+        # Get keypoints
+        keypoints1, descriptors1 = self.orb.detectAndCompute(previous_image, None)
+        keypoints2, descriptors2 = self.orb.detectAndCompute(image, None)
 
-        
-
-        #keypoints1 = self.orb.detect(self.images[i - 1], None)
-        keypoints1, descriptors1 = self.orb.detectAndCompute(self.images[i - 1], None)
-        #keypoints2 = self.orb.detect(self.images[i], None)
-        keypoints2, descriptors2 = self.orb.detectAndCompute(self.images[i], None)
-
-
-
+        # Get the matches
         matches = self.flann.knnMatch(descriptors1, descriptors2, k=2)
-        # store all the good matches as per Lowe's ratio test.
-        
-        
+       
+        # Determine good matches
         good = []
         for m,n in matches:
             if m.distance < 0.5*n.distance:
                 good.append(m)
 
+        # Convert the matches to NumPy arrays
         q1 = np.float32([ keypoints1[m.queryIdx].pt for m in good ])
         q2 = np.float32([ keypoints2[m.trainIdx].pt for m in good ])
 
         return q1, q2
 
-        # draw_params = dict(matchColor = -1, # draw matches in green color
-        #         singlePointColor = None,
-        #         matchesMask = None, # draw only inliers
-        #         flags = 2)
-
-        # img3 = cv2.drawMatches(self.images[i], keypoints1, self. images[i-1],keypoints2, good ,None,**draw_params)
-        # cv2.imshow("image", img3)
-        # cv2.waitKey(0)
-        # plt.imshow(img3, 'gray'),plt.show()
-        # plt.imshow(self.images[i]),plt.show()
-        # plt.imshow(self.images[i-1]),plt.show()
-
-
-
-        # This function should detect and compute keypoints and descriptors from the i-1'th and i'th image using the class orb object
-        # The descriptors should then be matched using the class flann object (knnMatch with k=2)
-        # Remove the matches not satisfying Lowe's ratio test
-        # Return a list of the good matches for each image, sorted such that the n'th descriptor in image i matches the n'th descriptor in image i-1
-        # https://docs.opencv.org/master/d1/de0/tutorial_py_feature_homography.html
-        pass
-
     def get_pose(self, q1, q2):
+        """Calculates the transformation matrix.
+
+        Args:
+            q1 (ndarray): The good keypoints matches position in i-1'th image
+            q2 (ndarray): The good keypoints matches position in i'th image
+
+        Returns:
+            ndarray: The transformation matrix
+
         """
-        Calculates the transformation matrix
+        essential, mask = cv2.findEssentialMat(q1, q2, self.K)
 
-        Parameters
-        ----------
-        q1 (ndarray): The good keypoints matches position in i-1'th image
-        q2 (ndarray): The good keypoints matches position in i'th image
-
-        Returns
-        -------
-        transformation_matrix (ndarray): The transformation matrix
-        """
-
-        Essential, mask = cv2.findEssentialMat(q1, q2, self.K)
-        # print ("\nEssential matrix:\n" + str(Essential))
-
-        R, t = self.decomp_essential_mat(Essential, q1, q2)
+        R, t = self.decomp_essential_mat(essential, q1, q2)
 
         return self._form_transf(R,t)
 
-        # Estimate the Essential matrix using built in OpenCV function
-        # Use decomp_essential_mat to decompose the Essential matrix into R and t
-        # Use the provided function to convert R and t to a transformation matrix T
-        pass
-
     def decomp_essential_mat(self, E, q1, q2):
+        """Decompose the Essential matrix.
+
+        Args:
+            E (ndarray): Essential matrix
+            q1 (ndarray): The good keypoints matches position in i-1'th image
+            q2 (ndarray): The good keypoints matches position in i'th image
+
+        Returns:
+            right_pair (list): Contains the rotation matrix and translation vector
+
         """
-        Decompose the Essential matrix
-
-        Parameters
-        ----------
-        E (ndarray): Essential matrix
-        q1 (ndarray): The good keypoints matches position in i-1'th image
-        q2 (ndarray): The good keypoints matches position in i'th image
-
-        Returns
-        -------
-        right_pair (list): Contains the rotation matrix and translation vector
-        """
-
-
         R1, R2, t = cv2.decomposeEssentialMat(E)
         T1 = self._form_transf(R1,np.ndarray.flatten(t))
         T2 = self._form_transf(R2,np.ndarray.flatten(t))
@@ -246,3 +172,34 @@ class VisualOdometry():
         elif (max == 1):
             # print(t)
             return R2, np.ndarray.flatten(t)
+    
+    def process_image(self, image:np.ndarray) -> np.ndarray:
+        """Process a monocular image.
+
+        Args:
+            image (np.ndarray): 
+
+        Returns:
+            np.ndarray: current pose within frame
+
+        """
+        # If initial step, just skip and setup values
+        if self.first_step:
+            self.first_step = False
+        else:
+            # Get keypoints
+            q1, q2 = self.get_matches(self.previous_image, image)
+
+            # Find the transformation between keypoints
+            transf = self.get_pose(q1, q2)
+
+            # Then compute new pose
+            self.current_pose = np.matmul(self.current_pose, np.linalg.inv(transf))
+
+        # Update previous image
+        self.previous_image = image
+
+        # Return the pose
+        return self.current_pose
+            
+
