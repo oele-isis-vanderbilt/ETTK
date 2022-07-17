@@ -1,3 +1,7 @@
+# References:
+# https://github.com/uoip/monoVO-python/blob/master/visual_odometry.py
+# https://github.com/niconielsen32/VisualSLAM
+
 # Built-in Imports
 from typing import Tuple
 import os
@@ -201,5 +205,3 @@ class VisualOdometry():
 
         # Return the pose
         return self.current_pose
-            
-
