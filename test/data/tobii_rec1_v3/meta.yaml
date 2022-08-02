@@ -1,0 +1,54 @@
+created: '2022-04-12T05:11:25.525299Z'
+duration: 81.11309478700001
+events:
+  file: eventdata.gz
+eyecameras: null
+gaze:
+  file: gazedata.gz
+  samples: 4050
+  valid-samples: 3990
+imu:
+  file: imudata.gz
+meta-folder: meta
+name: Recording 3
+scenecamera:
+  camera-calibration:
+    focal-length:
+    - 913.3529663085938
+    - 912.9318237304688
+    position:
+    - 0.0
+    - 0.0
+    - 0.0
+    principal-point:
+    - 957.1094360351562
+    - 512.6962890625
+    radial-distortion:
+    - -0.053107645362615585
+    - 0.07700736075639725
+    - -0.047823622822761536
+    resolution:
+    - 1920
+    - 1080
+    rotation:
+    - - -0.9999951124191284
+      - -0.002247112337499857
+      - 0.0021611149422824383
+    - - 0.002319138031452894
+      - -0.9994217157363892
+      - 0.03392405062913895
+    - - 0.002083634026348591
+      - 0.033928900957107544
+      - 0.9994220733642578
+    skew: 0.0
+    tangential-distortion:
+    - -0.0007462542271241546
+    - 6.593506259378046e-05
+  file: scenevideo.mp4
+  gaze-overlay: false
+  snapshots:
+  - file: snap0.jpg
+    time: 0.9681677870000001
+timezone: America/Los_Angeles
+uuid: 20fae95e-be96-4acb-b201-2bf040eebe3e
+version: 2

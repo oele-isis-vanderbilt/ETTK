@@ -1,0 +1,56 @@
+Viewer:
+    on: 1
+    KeyFrameSize: 0.6
+    KeyFrameLineWidth: 2
+    GraphLineWidth: 1
+    PointSize: 2
+    CameraSize: 0.7
+    CameraLineWidth: 3
+    ViewpointX: 0
+    ViewpointY: -100
+    ViewpointZ: -0.1
+    ViewpointF: 2000
+
+Camera:
+  fx: 913.3529663085938
+  fy: 912.9318237304688
+  cx: 957.1094360351562
+  cy: 512.6962890625
+
+  k1: -0.053107645362615585
+  k2: 0.07700736075639725
+  p1: -0.047823622822761536
+  p2: 0.0
+
+  width: 1920
+  height: 1080
+
+  # Camera frames per second 
+  fps: 24.99
+
+  # stereo baseline times fx
+  bf: 379.8145
+
+  # Color order of the images (0: BGR, 1: RGB. It is ignored if images are grayscale)
+  RGB: 1
+
+  # Close/Far threshold. Baseline times.
+  ThDepth: 40
+
+ORBExtractor:
+  # ORB Extractor: Number of features per image
+  # originally 2000 points 
+  nFeatures: 1000  
+
+  # ORB Extractor: Scale factor between levels in the scale pyramid 	
+  scaleFactor: 1.2
+
+  # ORB Extractor: Number of levels in the scale pyramid	
+  nLevels: 8
+
+  # ORB Extractor: Fast threshold
+  # Image is divided in a grid. At each cell FAST are extracted imposing a minimum response.
+  # Firstly we impose iniThFAST. If no corners are detected we impose a lower value minThFAST
+  # You can lower these values if your images have low contrast			
+  iniThFAST: 12
+  minThFAST: 7

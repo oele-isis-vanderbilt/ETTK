@@ -1,11 +1,11 @@
-# ET3D: Eye-Tracking 3D Tracking
+# ETTK: Eye-Tracking Toolkit
 
-This is a package that provides a toolkit for eye-tracking in 3D space. Note: this is in early development.
+This is a package that provides a toolkit for eye-tracking. Note: this is in early development.
 
 # Installation
 
 ```bash
-git clone git@github.com:oele-isis-vanderbilt/ET3D.git
-cd ET3D
+git clone git@github.com:oele-isis-vanderbilt/ETTK.git
+cd ETTK
 pip install .
 ```
