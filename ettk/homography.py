@@ -13,8 +13,9 @@ MIN_MATCH_COUNT = 10
 
 class Tracker():
 
-    def __init__(self):
+    def __init__(self, alpha=0.1):
         self.M = None
+        self.alpha = alpha
 
     def step(self, M, h, w):
 
@@ -34,7 +35,7 @@ class Tracker():
 
             # Take average between matrix
             if type(self.M) != type(None):
-                self.M = (self.M + M) / 2
+                self.M = (1-self.alpha)*self.M + (self.alpha)*M
             else:
                 self.M = M
 

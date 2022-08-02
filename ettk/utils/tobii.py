@@ -66,7 +66,7 @@ def load_temporal_gz_file(gz_filepath:pathlib.Path, verbose:bool=False) -> pd.Da
         data_dict.update(data)
 
         insert_df = pd.DataFrame([data_dict])
-        df = df.append(insert_df)
+        df = pd.concat([df, insert_df])
 
     # Clean the index 
     df.reset_index(inplace=True)
