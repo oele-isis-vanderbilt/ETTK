@@ -22,14 +22,14 @@ CWD = pathlib.Path(os.path.abspath(__file__)).parent
 # TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec1_v4'
 # TEST_IMAGE_PATH = CWD/'data'/'resources'/'paper_v4'/'UnwrappingthePast-PRINT-1.png'
 
-# TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec2_v4'
-# TEST_IMAGE_PATH = CWD/'data'/'resources'/'paper_v4'/'UnwrappingthePast-PRINT-1.png'
+TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec2_v4'
+TEST_IMAGE_PATH = CWD/'data'/'resources'/'paper_v4'/'UnwrappingthePast-PRINT-1.png'
 
 # TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_rec1_v1'
 # TEST_IMAGE_PATH = CWD/'data'/'resources'/'computer'/'computer_screenshot.png'
 
-TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_rec1_v2'
-TEST_IMAGE_PATH = CWD/'data'/'resources'/'computer'/'computer_screenshot_large_text.png'
+# TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_rec1_v2'
+# TEST_IMAGE_PATH = CWD/'data'/'resources'/'computer'/'computer_screenshot_large_text.png'
 
 VIDEO_START_INDEX = 1000
 
@@ -49,9 +49,11 @@ assert TEST_TOBII_REC_PATH.exists() and TEST_IMAGE_PATH.exists()
 
 @pytest.fixture
 def cap():
+    
     # Load the video and get a single frame
     cap = cv2.VideoCapture(str(TEST_TOBII_REC_PATH/'scenevideo.mp4'), 0)
     cap.set(cv2.CAP_PROP_POS_FRAMES, VIDEO_START_INDEX)
+
     return cap
 
 @pytest.fixture
@@ -71,15 +73,14 @@ def test_single_homography_frame(template, cap):
     # Make sure the frame is valid
     assert ret and isinstance(frame, np.ndarray)
 
-    # Initiate SIFT detector
-    # feature_extractor = cv2.SIFT_create()
-    feature_extractor = cv2.ORB_create()
+    # Create planer tracker
+    planer_tracker = ettk.PlanerTracker()
 
     # Apply homography
-    M, dst, kpts1, kpts2, dmatches = ettk.perform_homography(feature_extractor, template, frame)
+    M, dst, kpts1, kpts2, dmatches = planer_tracker.step(template, frame)
     
     # Draw paper outline
-    frame = ettk.draw_homography_outline(frame, dst)
+    frame = planer_tracker.draw_homography_outline(frame, dst)
 
     # draw match lines
     output = cv2.drawMatches(template, kpts1, frame, kpts2, dmatches[:20], None, flags=2)
@@ -91,11 +92,10 @@ def test_complete_video_homography_frame():
     cap = cv2.VideoCapture(str(TEST_TOBII_REC_PATH/'scenevideo.mp4'), 0)
     ret, frame = cap.read()
     template = cv2.imread(str(TEST_IMAGE_PATH), 0)
-    
-    # Initiate SIFT detector
-    # feature_extractor = cv2.SIFT_create()
-    feature_extractor = cv2.ORB_create()
 
+    # Create tracker
+    planer_tracker = ettk.PlanerTracker()
+    
     # Get the size of the video
     h, w, _ = frame.shape
 
@@ -109,7 +109,7 @@ def test_complete_video_homography_frame():
         ret, frame = cap.read()
         if ret:
             # Apply homography
-            M, dst, kpts1, kpts2, dmatches = ettk.perform_homography(feature_extractor, template, frame)
+            M, dst, kpts1, kpts2, dmatches = planer_tracker.step(feature_extractor, template, frame)
             
             # Draw paper outline
             frame = ettk.draw_homography_outline(frame, dst)
@@ -118,7 +118,9 @@ def test_complete_video_homography_frame():
             output = cv2.drawMatches(template, kpts1, frame, kpts2, dmatches[:20], None, flags=2)
             new_output = output.astype(np.uint8)
             cv2.imshow('output', new_output)
-            cv2.waitKey(1)
+
+            if cv2.waitKey(1) & 0xFF ==ord('q'):
+                break
         else:
             break
 
@@ -161,7 +163,6 @@ def test_eye_tracking_with_homography_single_frame(template, cap):
     # draw match lines
     output = cv2.drawMatches(template, kpts1, frame, kpts2, dmatches[:20], None, flags=2)
     plt.imshow(output); plt.show()
-    logger.debug(fix)
 
 def test_eye_tracking_with_complete_video_homography_frame(template, cap):
     
@@ -210,20 +211,17 @@ def test_eye_tracking_with_complete_video_homography_frame(template, cap):
         if ret:
             # Apply homography
             M, dst, kpts1, kpts2, dmatches = ettk.perform_homography(feature_extractor, template, frame)
-            logger.info(f'rect dst: {dst}')
 
-            # if type(M) == type(None):
-            #     continue
+            if type(M) == type(None):
+                continue
             
             # Draw paper outline
             frame = ettk.draw_homography_outline(frame, dst)
 
             # Apply homography to fixation and draw it on the page
             fix_pt = np.float32([ [fix[0], fix[1]] ]).reshape(-1,1,2)
-            # pdb.set_trace()
             fix_dst = cv2.perspectiveTransform(fix_pt, np.linalg.inv(M)).flatten().astype(np.int32)
 
-            logger.info(f'fix: {fix}, fix_pt: {fix_pt}, fix_dst: {fix_dst}')
             draw_template = cv2.circle(template.copy(), fix_dst, FIX_RADIUS, FIX_COLOR, FIX_THICKNESS)
 
             # draw match lines
