@@ -4,8 +4,6 @@ from typing import Any
 # Third-party
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
-import tqdm
 
 import logging
 logger = logging.getLogger(__name__)
@@ -17,6 +15,7 @@ MIN_MATCH_COUNT = 10
 
 class PlanerTracker():
 
+    # Initial homography matrix
     M = None
 
     def __init__(
