@@ -55,7 +55,7 @@ class PlanerTracker():
 
         for line in lines:
             for x1, y1, x2, y2 in line:
-                cv2.line(draw_img, (x1, y1), (x2, y2), (255,0,0), )
+                cv2.line(draw_img, (x1, y1), (x2, y2), (255,0,0), 3)
 
         return draw_img
 
@@ -103,6 +103,8 @@ class PlanerTracker():
         # Match between keypoints
         matches = self.matcher.match(descs1, descs2)
         dmatches = sorted(matches, key = lambda x:x.distance) 
+
+        # If not enough matches stop
         
         # extract the matched keypoints
         src_pts  = np.float32([kpts1[m.queryIdx].pt for m in dmatches]).reshape(-1,1,2)

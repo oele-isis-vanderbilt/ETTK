@@ -20,10 +20,12 @@ import ettk
 CWD = pathlib.Path(os.path.abspath(__file__)).parent
 
 # TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec1_v4'
+# TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec2_v4'
+# TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec3_v4'
 # TEST_IMAGE_PATH = CWD/'data'/'resources'/'paper_v4'/'UnwrappingthePast-PRINT-1.png'
 
-TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec2_v4'
-TEST_IMAGE_PATH = CWD/'data'/'resources'/'paper_v4'/'UnwrappingthePast-PRINT-1.png'
+TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec4_v4'
+TEST_IMAGE_PATH = CWD/'data'/'resources'/'paper_v4'/'UnwrappingthePast-PRINT-3.png'
 
 # TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_rec1_v1'
 # TEST_IMAGE_PATH = CWD/'data'/'resources'/'computer'/'computer_screenshot.png'
@@ -281,7 +283,10 @@ def test_eye_tracking_with_complete_video_homography_frame(template, cap):
 
         # Get fixation
         current_time = (VIDEO_START_INDEX+video_index_counter) * (1/fps)
-        raw_fix = gaze_df[gaze_df['timestamp'] > current_time].reset_index().iloc[0]['gaze2d']
+        try:
+            raw_fix = gaze_df[gaze_df['timestamp'] > current_time].reset_index().iloc[0]['gaze2d']
+        except IndexError:
+            raw_fix = [0, 0]
 
         if isinstance(raw_fix, str):
             raw_fix = ast.literal_eval(raw_fix)
@@ -289,7 +294,7 @@ def test_eye_tracking_with_complete_video_homography_frame(template, cap):
         fix = (int(raw_fix[0]*w), int(raw_fix[1]*h))
         
         # Draw eye-tracking into the original video frame
-        frame = cv2.circle(frame.copy(), fix, FIX_RADIUS, FIX_COLOR, FIX_THICKNESS)
+        draw_frame = cv2.circle(frame.copy(), fix, FIX_RADIUS, FIX_COLOR, FIX_THICKNESS)
 
         if ret:
             # Apply homography
@@ -299,7 +304,7 @@ def test_eye_tracking_with_complete_video_homography_frame(template, cap):
                 continue
             
             # Draw paper outline
-            frame = planer_tracker.draw_homography_outline(frame, result['dst'])
+            draw_frame = planer_tracker.draw_homography_outline(draw_frame, result['dst'])
 
             # Apply homography to fixation and draw it on the page
             fix_pt = np.float32([ [fix[0], fix[1]] ]).reshape(-1,1,2)
@@ -311,7 +316,7 @@ def test_eye_tracking_with_complete_video_homography_frame(template, cap):
             output = cv2.drawMatches(
                 draw_template, 
                 result['homography']['kpts1'], 
-                frame, 
+                draw_frame, 
                 result['homography']['kpts2'], 
                 result['homography']['dmatches'][:20],
                 None, 
