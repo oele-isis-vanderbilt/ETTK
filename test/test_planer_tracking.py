@@ -23,11 +23,11 @@ CWD = pathlib.Path(os.path.abspath(__file__)).parent
 
 # TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec1_v4'
 # TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec2_v4'
-# TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec3_v4'
-# TEST_IMAGE_PATH = CWD/'data'/'resources'/'paper_v4'/'UnwrappingthePast-PRINT-1.png'
+TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec3_v4'
+TEST_IMAGE_PATH = CWD/'data'/'resources'/'paper_v4'/'UnwrappingthePast-PRINT-1.png'
 
-TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec4_v4'
-TEST_IMAGE_PATH = CWD/'data'/'resources'/'paper_v4'/'UnwrappingthePast-PRINT-3.png'
+# TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec4_v4'
+# TEST_IMAGE_PATH = CWD/'data'/'resources'/'paper_v4'/'UnwrappingthePast-PRINT-3.png'
 
 # TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_rec1_v1'
 # TEST_IMAGE_PATH = CWD/'data'/'resources'/'computer'/'computer_screenshot.png'
@@ -49,7 +49,8 @@ FIX_RADIUS = 15
 FIX_COLOR = (0, 0, 255)
 FIX_THICKNESS = 5
 
-assert TEST_TOBII_REC_PATH.exists() and TEST_IMAGE_PATH.exists()
+assert TEST_TOBII_REC_PATH.exists() 
+assert TEST_IMAGE_PATH.exists()
 
 @pytest.fixture
 def cap():
@@ -92,6 +93,47 @@ def test_single_hough_line_frame(cap):
 
     # draw match lines
     plt.imshow(output); plt.show()
+
+def test_single_hough_line_homography_fusion(template, cap):
+    
+    ret, frame = cap.read()
+ 
+    # Make sure the frame is valid
+    assert ret and isinstance(frame, np.ndarray)
+
+    # Create planer tracker
+    planer_tracker = ettk.PlanerTracker()
+
+    # Apply homography
+    result = planer_tracker.step(template, frame)
+
+    colors = [
+        (255,255,255),
+        (255,0,0),
+        (255,0,255),
+        (0,0,255),
+        (0,255,0)
+    ]
+
+    # Extract the result content
+    lines = result['hough_lines']['lines']
+    outline = result['hough_lines']['outline_preds']
+    corners = result['hough_lines']['corners_pred']
+    
+    # Draw lines
+    draw_frame = frame.copy()
+    draw_frame = planer_tracker.draw_hough_lines(draw_frame, lines, color=colors[0])
+
+    # Draw the outline
+    for line, color in zip(outline, colors[1:]):
+        draw_frame = planer_tracker.draw_hough_lines(draw_frame, line, color=color)
+
+    # Draw the corners
+    draw_frame = planer_tracker.draw_pts(draw_frame, corners, color=(0,0,255), radius=10)
+
+    cv2.imshow('output', draw_frame)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
 def test_single_contour_frame(template, cap):
     
@@ -152,56 +194,6 @@ def test_single_homography_frame(template, cap):
     )
     plt.imshow(output); plt.show()
 
-def test_complete_video_homography_frame(template, cap):
-    
-    # Load the video and get a single frame
-    ret, frame = cap.read()
-
-    # Create tracker
-    planer_tracker = ettk.PlanerTracker()
-    
-    # Get the size of the video
-    h, w, _ = frame.shape
-
-    cv2.namedWindow('output', cv2.WINDOW_NORMAL)
-
-    # Set the starting point
-    cap.set(cv2.CAP_PROP_POS_FRAMES, VIDEO_START_INDEX)
-
-    # Then perform homography
-    while(True):
-        ret, frame = cap.read()
-        if ret:
-            # Apply homography
-            result = planer_tracker.step(template, frame)
-            
-            # Draw paper outline
-            frame = planer_tracker.draw_homography_outline(frame, result['dst'])
-
-            # draw match lines
-            output = cv2.drawMatches(
-                template, 
-                result['homography']['kpts1'], 
-                frame, 
-                result['homography']['kpts2'], 
-                result['homography']['dmatches'][:20],
-                None, 
-                flags=2
-            )
-
-            new_output = output.astype(np.uint8)
-            cv2.imshow('output', new_output)
-
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-        else:
-            break
-
-        # break
-
-    # Closing the video
-    cv2.destroyAllWindows()
-
 def test_eye_tracking_with_homography_single_frame(template, cap):
 
     # Load the video and get a single frame
@@ -252,6 +244,124 @@ def test_eye_tracking_with_homography_single_frame(template, cap):
     )
     plt.imshow(output); plt.show()
 
+def test_complete_video_homography_frame(template, cap):
+    
+    # Load the video and get a single frame
+    ret, frame = cap.read()
+
+    # Create tracker
+    planer_tracker = ettk.PlanerTracker()
+    
+    # Get the size of the video
+    h, w, _ = frame.shape
+
+    cv2.namedWindow('output', cv2.WINDOW_NORMAL)
+
+    # Set the starting point
+    cap.set(cv2.CAP_PROP_POS_FRAMES, VIDEO_START_INDEX)
+
+    # Then perform homography
+    while(True):
+        ret, frame = cap.read()
+        
+        if ret:
+            # Apply homography
+            result = planer_tracker.step(template, frame)
+            
+            # Draw paper outline
+            frame = planer_tracker.draw_homography_outline(frame, result['dst'])
+
+            # draw match lines
+            output = cv2.drawMatches(
+                template, 
+                result['homography']['kpts1'], 
+                frame, 
+                result['homography']['kpts2'], 
+                result['homography']['dmatches'][:20],
+                None, 
+                flags=2
+            )
+
+            new_output = output.astype(np.uint8)
+            cv2.imshow('output', new_output)
+
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+        else:
+            break
+
+        # break
+
+    # Closing the video
+    cv2.destroyAllWindows()
+
+def test_complete_video_fusion_frame(template, cap):
+    
+    # Load the video and get a single frame
+    ret, frame = cap.read()
+
+    # Create tracker
+    planer_tracker = ettk.PlanerTracker()
+    
+    # Get the size of the video
+    h, w, _ = frame.shape
+
+    cv2.namedWindow('output', cv2.WINDOW_NORMAL)
+
+    # Set the starting point
+    cap.set(cv2.CAP_PROP_POS_FRAMES, VIDEO_START_INDEX)
+
+    # Define the colors for the lines
+    colors = [
+        (255,255,255),
+        (255,0,0),
+        (255,0,255),
+        (0,0,255),
+        (0,255,0)
+    ]
+
+    # Then perform homography
+    while(True):
+
+        ret, frame = cap.read()
+        if ret:
+
+            # Make a copy to draw
+            draw_frame = frame.copy()
+            
+            # Apply homography
+            result = planer_tracker.step(template, frame)
+            
+            # Draw paper outline
+            draw_frame = planer_tracker.draw_homography_outline(draw_frame, result['dst'])
+            
+            # Extract the result content
+            lines = result['hough_lines']['lines']
+            outline = result['hough_lines']['outline_preds']
+            corners = result['hough_lines']['corners_pred']
+
+            # Draw lines
+            draw_frame = planer_tracker.draw_hough_lines(draw_frame, lines, color=colors[0])
+
+            # Draw the outline
+            for line, color in zip(outline, colors[1:]):
+                draw_frame = planer_tracker.draw_hough_lines(draw_frame, line, color=color)
+
+            # Draw the corners
+            draw_frame = planer_tracker.draw_pts(draw_frame, corners, color=(0,0,255), radius=10)
+            
+            cv2.imshow('output', draw_frame)
+
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+        else:
+            break
+
+        # break
+
+    # Closing the video
+    cv2.destroyAllWindows()
+
 def test_eye_tracking_with_complete_video_homography_frame(template, cap):
     
     # Load the video and get a single frame
@@ -283,22 +393,23 @@ def test_eye_tracking_with_complete_video_homography_frame(template, cap):
         # Get video
         ret, frame = cap.read()
 
-        # Get fixation
-        current_time = (VIDEO_START_INDEX+video_index_counter) * (1/fps)
-        try:
-            raw_fix = gaze_df[gaze_df['timestamp'] > current_time].reset_index().iloc[0]['gaze2d']
-        except IndexError:
-            raw_fix = [0, 0]
-
-        if isinstance(raw_fix, str):
-            raw_fix = ast.literal_eval(raw_fix)
-        
-        fix = (int(raw_fix[0]*w), int(raw_fix[1]*h))
-        
-        # Draw eye-tracking into the original video frame
-        draw_frame = cv2.circle(frame.copy(), fix, FIX_RADIUS, FIX_COLOR, FIX_THICKNESS)
-
         if ret:
+        
+            # Get fixation
+            current_time = (VIDEO_START_INDEX+video_index_counter) * (1/fps)
+            try:
+                raw_fix = gaze_df[gaze_df['timestamp'] > current_time].reset_index().iloc[0]['gaze2d']
+            except IndexError:
+                raw_fix = [0, 0]
+
+            if isinstance(raw_fix, str):
+                raw_fix = ast.literal_eval(raw_fix)
+            
+            fix = (int(raw_fix[0]*w), int(raw_fix[1]*h))
+            
+            # Draw eye-tracking into the original video frame
+            draw_frame = cv2.circle(frame.copy(), fix, FIX_RADIUS, FIX_COLOR, FIX_THICKNESS)
+            
             # Apply homography
             result = planer_tracker.step(template, frame)
 
