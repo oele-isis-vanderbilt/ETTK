@@ -8,13 +8,15 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Third-party Imports
-import cv2
 import pytest
+import cv2
+import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
 # Internal Imports
 import ettk
+import mtr
 
 # CONSTANTS
 CWD = pathlib.Path(os.path.abspath(__file__)).parent
@@ -69,7 +71,7 @@ def template():
     return template
 
 
-def test_single_hough_line_frame(template, cap):
+def test_single_hough_line_frame(cap):
     
     ret, frame = cap.read()
  
@@ -335,3 +337,41 @@ def test_eye_tracking_with_complete_video_homography_frame(template, cap):
 
     # Closing the video
     cv2.destroyAllWindows()
+
+def test_DL_approach(template, cap):
+
+    # Create a model
+    nyu_net = mtr.TrainedNet(
+        dataset='nyu', 
+        tasks=['seg', 'normals'],
+        device=torch.device('cpu')
+    )
+    nyu_net.eval()
+
+    # Get cmap
+    cmap = mtr.get_cmap('nyu')
+
+    # Then perform homography
+    while(True):
+
+        # Get video
+        ret, img = cap.read()
+        img = mtr.match_size_img(img)
+
+        # Prepare the image
+        prep_img = mtr.prepare_img(img)
+
+        # forward propagate
+        seg, depth, norm = nyu_net(prep_img)
+
+        # Clean outputs
+        c_seg = mtr.clean_seg(seg, img, 'nyu')
+        c_depth = mtr.clean_depth(depth, img)
+        c_norm = mtr.clean_norm(norm, img)
+        
+        # Constructing visualization method
+        vis_seg = cmap[c_seg.argmax(axis=2) + 1].astype(np.uint8)
+        visual = ettk.utils.combine_frames(img, vis_seg)
+        cv2.imshow('visual', visual)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break

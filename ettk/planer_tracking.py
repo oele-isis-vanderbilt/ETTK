@@ -153,7 +153,7 @@ class PlanerTracker():
         grey_frame = cv2.GaussianBlur(grey_frame, (self.kernel_size, self.kernel_size), 0)
 
         # Apply Canny line detection
-        edges = cv2.Canny(grey_frame, self.low_threshold, self.high_threshold)
+        edges = cv2.Canny(grey_frame, self.low_threshold, self.high_threshold, None, 3)
 
         # Then predict the lines
         lines = cv2.HoughLinesP(edges, 1, np.pi/180, 100, 100, 10)
