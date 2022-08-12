@@ -1,3 +1,6 @@
+# YOLO weights
+yolov*.pt
+
 # Path Specific
 thirdparty/
 data/
