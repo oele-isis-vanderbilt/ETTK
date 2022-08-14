@@ -27,8 +27,8 @@ class PlanerTracker():
             matcher:Any=cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True),
             alpha:float=0.1,
             kernel_size:int=5,
-            low_threshold:int=50,
-            high_threshold:int=150,
+            low_threshold:int=20,
+            high_threshold:int=200,
             hough_border:int=50,
             min_threshold:float=50,
             beta:float=0.6
@@ -47,67 +47,6 @@ class PlanerTracker():
         self.min_threshold = min_threshold
         self.beta = beta
     
-    @staticmethod
-    def draw_homography_outline(img:np.ndarray, dst:np.ndarray) -> np.ndarray:
-        
-        if type(dst) != type(None):
-            # draw found regions
-            return cv2.polylines(img, [dst], True, (0,0,255), 3, cv2.LINE_AA)
-        else:
-            return img
-
-    @staticmethod
-    def draw_hough_lines(img:np.ndarray, lines:list, color:tuple=(255,0,0)) -> np.ndarray:
-
-        # Make copy to safely draw
-        draw_img = img.copy()
-
-        for line in lines:
-            for x1, y1, x2, y2 in line:
-                cv2.line(draw_img, (int(x1), int(y1)), (int(x2), int(y2)), color, 3)
-
-        return draw_img
-
-    @staticmethod
-    def draw_contours(img:np.ndarray, cnts:list, color:tuple=(0,255,0)) -> np.ndarray:
-        
-        # Make copy to safely draw
-        draw_img = img.copy()
-
-        # For each contour, draw it!
-        for c in cnts:
-            cv2.drawContours(draw_img,[c], 0, color, 3)
-
-        return draw_img
-
-    @staticmethod
-    def draw_rects(img:np.ndarray, rects:List[tuple]) -> np.ndarray:
-        
-        # Make copy to safely draw
-        draw_img = img.copy()
-
-        for rect in rects:
-            x,y,w,h = rect
-            cv2.rectangle(draw_img, (x,y), (x+w, y+h), (0,0,255), 2)
-
-        return draw_img
-
-    @staticmethod
-    def draw_pts(
-            img:np.ndarray, 
-            pts:np.ndarray, 
-            color:tuple=(255,0,0), 
-            radius:int=2
-        ) -> np.ndarray:
-        
-        # Make copy to safely draw
-        draw_img = img.copy()
-
-        for pt in pts.astype(np.int32):
-            cv2.circle(draw_img, pt, 3, color, radius)
-
-        return draw_img
-
     @staticmethod
     def get_intersection(l1, l2):
         # https://stackoverflow.com/a/64853478/13231446
@@ -145,7 +84,8 @@ class PlanerTracker():
         
         # Convert frame to grey and apply Guassian blur
         grey_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        grey_frame = cv2.GaussianBlur(grey_frame, (self.kernel_size, self.kernel_size), 0)
+        # grey_frame = cv2.GaussianBlur(grey_frame, (self.kernel_size, self.kernel_size), 0)
+        grey_frame = cv2.bilateralFilter(grey_frame, 5, 75, 75)
 
         # Apply Canny line detection
         edges = cv2.Canny(grey_frame, self.low_threshold, self.high_threshold)
@@ -221,10 +161,10 @@ class PlanerTracker():
         dst = np.array(cv2.perspectiveTransform(pts,self.M), dtype=np.int32).reshape((4,2))
 
         # Filter the lines
-        assigned_lines = self.assign_lines_to_outline_lines(dst, lines)
+        line_clusters = self.assign_lines_to_outline_lines(dst, lines)
 
         # Obtain the lines predictions
-        outline_preds = self.predict_outline(assigned_lines)
+        outline_preds = self.predict_outline(line_clusters)
 
         # Estimate paper corners
         corners_preds = self.predict_paper_corners(outline_preds, dst)
@@ -238,7 +178,7 @@ class PlanerTracker():
         else:
             self.M = M
 
-        return outline_preds, corners_preds
+        return line_clusters, outline_preds, corners_preds
 
     def assign_lines_to_outline_lines(self, pts, lines):
         """
@@ -270,12 +210,14 @@ class PlanerTracker():
         which_line[(close_to_pts == np.array([True, False, False, True])).all(axis=1)] = 3
 
         # Select the lines
-        lines0 = lines[which_line==0]
-        lines1 = lines[which_line==1]
-        lines2 = lines[which_line==2]
-        lines3 = lines[which_line==3]
+        line_clusters = [
+            lines[which_line==0],
+            lines[which_line==1],
+            lines[which_line==2],
+            lines[which_line==3]
+        ]
 
-        return lines0, lines1, lines2, lines3
+        return line_clusters
 
     def predict_outline(self, assigned_lines):
 
@@ -336,7 +278,7 @@ class PlanerTracker():
             l1, l2 = outline_preds[pt_lines[0]], outline_preds[pt_lines[1]]
 
             # If no line segments are predicted!
-            if l1.shape[0] != 0 or l2.shape[0] != 0:
+            if l1.shape[0] == 0 or l2.shape[0] == 0:
                 estimated_pts.append(pt)
 
             # If we can reconstruct the line
@@ -345,27 +287,27 @@ class PlanerTracker():
                 intersection_pt = self.get_intersection(l1[0,0,:], l2[0,0,:])
                 estimated_pts.append(intersection_pt)
 
-        # Refine pts by using existing segments
-        for pt_id, pt in enumerate(pts):
+        # # Refine pts by using existing segments
+        # for pt_id, pt in enumerate(pts):
             
-            # Get the line segments that contribute to the point
-            pt_lines = pt_to_line_map[pt_id]
-            l1, l2 = outline_preds[pt_lines[0]], outline_preds[pt_lines[1]]
+        #     # Get the line segments that contribute to the point
+        #     pt_lines = pt_to_line_map[pt_id]
+        #     l1, l2 = outline_preds[pt_lines[0]], outline_preds[pt_lines[1]]
 
-            # Deal with scenarios where we only had 1 line segments
-            # Determine supporting pt
-            if l1.shape[0] != 0 and l2.shape[0] == 0: # vertical
-                sup_info = pt_assist_map[pt_id][0]
-                sup_line = l1
-            elif l1.shape[0] == 0 and l2.shape[0] != 0: # horizontle
-                sup_info = pt_assist_map[pt_id][1]
-                sup_line = l2
+        #     # Deal with scenarios where we only had 1 line segments
+        #     # Determine supporting pt
+        #     if l1.shape[0] != 0 and l2.shape[0] == 0: # vertical
+        #         sup_info = pt_assist_map[pt_id][0]
+        #         sup_line = l1
+        #     elif l1.shape[0] == 0 and l2.shape[0] != 0: # horizontle
+        #         sup_info = pt_assist_map[pt_id][1]
+        #         sup_line = l2
 
-            # Then use the supporting information to compute new point
-            # First, find the slope
-            pdb.set_trace()
-            x1, y1, x2, y2 = sup_line
-            m = (y2-y1)/(x2-x1)
+        #     # Then use the supporting information to compute new point
+        #     # First, find the slope
+        #     pdb.set_trace()
+        #     x1, y1, x2, y2 = sup_line
+        #     m = (y2-y1)/(x2-x1)
 
 
         # Stack the resulting pts
@@ -395,12 +337,28 @@ class PlanerTracker():
                 max_cnt = cnt
 
         return max_cnt, max_count
-    
-    def step(self, template:np.ndarray, frame:np.ndarray) -> dict:
 
+    def initial_estimation(self, template:np.ndarray, frame:np.ndarray):
+        
         # Perform homography
         M, kpts1, kpts2, dmatches = self.perform_homography(template, frame)
 
+        # Obtain size of the template
+        h, w = template.shape[:2]
+
+        # First get the destinatin points
+        pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
+
+        # Check if we should stop
+        if type(M) != type(None):
+            corners = np.array(cv2.perspectiveTransform(pts, M), dtype=np.int32).reshape((4,2))
+        else:
+            corners = np.empty((0,2))
+
+        return {'M': M, 'corners': corners}
+
+    def refinement_process(self, template:np.ndarray, frame:np.ndarray) -> dict:
+        
         # Perform hough line prediction
         edges, lines = self.perform_hough_line_prediction(frame)
 
@@ -409,23 +367,22 @@ class PlanerTracker():
 
         # Refine through predicted lines
         if type(self.M) != type(None):
-            outline_preds, corners_pred = self._fine_tune_hough(template, lines)
+            line_clusters, outline_preds, corners_pred = self._fine_tune_hough(template, lines)
         else:
+            line_clusters = []
             outline_preds = []
             corners_pred = np.empty((0,2))
+    
+    def step(self, template:np.ndarray, frame:np.ndarray) -> dict:
+
+        # Take initial estimation
+        initial = self.initial_estimation(template, frame)
+
+        # Refinement process
+        refine = self.refinement_process(template, frame, initial)
 
         return {
-            'M': self.M, 
-            'dst': dst, 
-            'homography': {
-                'kpts1': kpts1, 
-                'kpts2': kpts2, 
-                'dmatches': dmatches
-            },
-            'hough_lines': {
-                'edges': edges,
-                'lines': lines,
-                'outline_preds': outline_preds,
-                'corners_pred': corners_pred
-            }
+            'initial': initial,
+            'refine': {},
+            'final': {}
         }

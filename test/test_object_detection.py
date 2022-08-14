@@ -12,7 +12,7 @@ import numpy as np
 import cv2
 
 CWD = pathlib.Path(os.path.abspath(__file__)).parent
-TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec3_v4'
+TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec4_v4'
 
 @pytest.fixture
 def cap():
