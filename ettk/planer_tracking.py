@@ -1,5 +1,7 @@
 # Built-in Imports
 from typing import Any, Optional, Tuple, List
+import time
+import collections
 
 # Third-party
 import numpy as np
@@ -15,29 +17,42 @@ import pdb
 
 # Constants
 MIN_MATCH_COUNT = 10
+LK_PARAMS = dict( winSize  = (15, 15),
+                  maxLevel = 2,
+                  criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
 
 class PlanerTracker():
 
     # Initial homography matrix
     M = None
+    src_tracked_points = np.empty((0,1,2))
+    dst_tracked_points = np.empty((0,1,2))
+    corners = np.empty((0,1,2))
+    step_id = 0
+    previous_frame = None
+    previous_template = None
+    previous_template_data = None
+    fps_deque = collections.deque(maxlen=100)
 
     def __init__(
             self, 
             feature_extractor:Any=cv2.ORB_create(), 
             matcher:Any=cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True),
-            alpha:float=0.1,
+            alpha:float=0.7,
             kernel_size:int=5,
             low_threshold:int=20,
             high_threshold:int=200,
             hough_border:int=50,
             min_threshold:float=50,
-            beta:float=0.6
+            beta:float=0.6,
+            max_corner_movement:float=50
         ):
 
         # Feature Matching parameters
         self.feature_extractor = feature_extractor
         self.matcher = matcher
         self.alpha = alpha
+        self.max_corner_movement = max_corner_movement
 
         # Hough Line parameters
         self.kernel_size = kernel_size
@@ -57,15 +72,78 @@ class PlanerTracker():
         i = line1.intersection(line2)
         return np.float32([i[0].evalf().x, i[0].evalf().y])
 
+    def check_if_homography_matrix_valid(
+            self, 
+            M:np.ndarray, 
+            template_corners:np.ndarray,
+            max_corner_movement_check:bool=False
+        ):
+
+        # Obvious check
+        if type(M) == type(None):
+            return False
+        
+        # Compute corners with the acquired corners
+        corners = np.array(cv2.perspectiveTransform(template_corners, M), dtype=np.int32).reshape((4,2))
+
+        # Check if there is a previous M
+        if max_corner_movement_check and type(self.M) != type(None):
+            prev_corners = np.array(cv2.perspectiveTransform(template_corners, self.M), dtype=np.int32).reshape((4,2))
+
+            # Determine total distance
+            total_d = np.sqrt(np.power(prev_corners - corners, 2))
+            if (total_d > self.max_corner_movement).any():
+                return False
+
+        # Decompose corners
+        tl, bl, br, tr = corners.tolist()
+
+        # Check if the destination points are valid (top above bottom, left is left of right)
+        if tl[0] < tr[0] and tl[0] < br[0] and\
+            bl[0] < br[0] and bl[0] < tr[0] and\
+            tl[1] < bl[1] and tl[1] < br[1] and\
+            tr[1] < bl[1] and tr[1] < br[1]:
+
+
+            # Check that the rectangle has a decent size area
+            x, y = corners[:,0], corners[:,1]
+            area = 0.5*np.abs(np.dot(x, np.roll(y,1)) - np.dot(y,np.roll(x,1)))
+            if area <= 100:
+                return False
+            else:
+                return True
+        
+        else:
+            return False
+
     def perform_homography(self, template:np.ndarray, frame:np.ndarray):
         
         # find the keypoints and descriptors with SIFT
-        kpts1, descs1 = self.feature_extractor.detectAndCompute(template,None)
+        if type(self.previous_template) == type(None) or (self.previous_template != template).all():
+            self.previous_template_data = self.feature_extractor.detectAndCompute(template,None)
+            # self.previous_template_data = self.feature_extractor.compute(template,None)
+            self.previous_template = template
+
+        # Obtain the keypoints
+        kpts1, descs1 = self.previous_template_data
         kpts2, descs2 = self.feature_extractor.detectAndCompute(frame,None)
+        # kpts2, descs2 = self.feature_extractor.compute(frame,None)
 
         # Match between keypoints
         matches = self.matcher.match(descs1, descs2)
         dmatches = sorted(matches, key = lambda x:x.distance) 
+        # matches = self.matcher.knnMatch(np.float32(descs1), np.float32(descs2), k=2)
+
+        # Lowe's ratio test
+        # ratio_thresh = 0.7
+
+        # "Good" matches
+        # good_matches = []
+
+        # Filter matches
+        # for m, n in matches:
+        #     if m.distance < ratio_thresh * n.distance:
+        #         good_matches.append(m)
 
         # If not enough matches stop
         if len(dmatches) < 4:
@@ -110,29 +188,10 @@ class PlanerTracker():
 
         return cnts
 
-    def _fine_tune_homography(self, M:np.ndarray, template:np.ndarray) -> Optional[np.ndarray]:
-        
-        # Obtain size of the template
-        h, w = template.shape[:2]
+    def _fine_tune_homography(self, M:np.ndarray, template_corners:np.ndarray):
 
-        # First get the destinatin points
-        pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
-
-        # Check if we should stop
-        if type(M) == type(None):
-            dst = np.array(cv2.perspectiveTransform(pts,self.M), dtype=np.int32).reshape((4,2))
-            return dst
-        
-        dst = np.array(cv2.perspectiveTransform(pts,M), dtype=np.int32).reshape((4,2))
-        tl, bl, br, tr = dst.tolist()
-
-        # Check if the destination points are valid
-        # x verification
-        if tl[0] < tr[0] and tl[0] < br[0] and\
-            bl[0] < br[0] and bl[0] < tr[0] and\
-            tl[1] < bl[1] and tl[1] < br[1] and\
-            tr[1] < bl[1] and tr[1] < br[1]:
-
+        if self.check_if_homography_matrix_valid(M, template_corners):
+            
             # Mix resulting matrix
             if type(self.M) != type(None):
                 self.M = (1-self.alpha)*self.M + (self.alpha)*M
@@ -141,11 +200,11 @@ class PlanerTracker():
 
         # Then compute the new points
         if type(self.M) != type(None):
-            dst = np.array(cv2.perspectiveTransform(pts,self.M), dtype=np.int32)
+            corners = np.array(cv2.perspectiveTransform(template_corners, self.M), dtype=np.int32)
         else:
-            dst = None
+            corners = np.empty((0,1,2))
 
-        return dst
+        return self.M, corners
 
     def _fine_tune_hough(
             self, 
@@ -347,15 +406,17 @@ class PlanerTracker():
         h, w = template.shape[:2]
 
         # First get the destinatin points
-        pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
+        template_corners = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
 
         # Check if we should stop
         if type(M) != type(None):
-            corners = np.array(cv2.perspectiveTransform(pts, M), dtype=np.int32).reshape((4,2))
-        else:
-            corners = np.empty((0,2))
+            # Fine-tune estimation
+            self.M, self.corners = self._fine_tune_homography(M, template_corners)
 
-        return {'M': M, 'corners': corners}
+        # Obtain the locations of the tracked points
+        if type(self.M) != type(None):
+            self.src_tracked_points = np.float32([kpts1[m.queryIdx].pt for m in dmatches]).reshape(-1,1,2)
+            self.dst_tracked_points = np.array(cv2.perspectiveTransform(self.src_tracked_points, self.M), dtype=np.int32).reshape((-1,1,2))
 
     def refinement_process(self, template:np.ndarray, frame:np.ndarray) -> dict:
         
@@ -372,17 +433,88 @@ class PlanerTracker():
             line_clusters = []
             outline_preds = []
             corners_pred = np.empty((0,2))
+
+    def optical_flow_tracking(self, template:np.ndarray, frame:np.ndarray):
+        
+        # Obtain size of the template
+        h, w = template.shape[:2]
+
+        # First get the destinatin points
+        template_corners = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
+
+        # Convert image to grey
+        current_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+        # Apply optical flow
+        p1, _st, _err = cv2.calcOpticalFlowPyrLK(
+            self.previous_frame, 
+            current_frame, 
+            self.dst_tracked_points.astype(np.float32), 
+            None, 
+            **LK_PARAMS
+        )
+        p0r, _st, _err = cv2.calcOpticalFlowPyrLK(
+            current_frame, 
+            self.previous_frame, 
+            p1, 
+            None, 
+            **LK_PARAMS
+        )
+
+        # Determine which points were tracked well
+        d = abs(self.dst_tracked_points-p0r).reshape(-1, 2).max(-1)
+        good = d < 0.5
+
+        # Update the tracked points
+        self.dst_tracked_points = p1
+
+        # Compute a new homography
+        self.src_tracked_points = self.src_tracked_points[good]
+        self.dst_tracked_points = self.dst_tracked_points[good]
+
+        if self.dst_tracked_points.shape[0] >= 4:
+            M, mask = cv2.findHomography(
+                self.src_tracked_points, 
+                self.dst_tracked_points, 
+                cv2.RANSAC, 
+                5.0
+            )
+
+            # Only use the generated M if it is reasonable
+            if self.check_if_homography_matrix_valid(M, template_corners, max_corner_movement_check=True):
+                self.M = (1-self.alpha)*self.M + (self.alpha)*M
     
     def step(self, template:np.ndarray, frame:np.ndarray) -> dict:
 
-        # Take initial estimation
-        initial = self.initial_estimation(template, frame)
+        # Start timing
+        tic = time.time()
 
-        # Refinement process
-        refine = self.refinement_process(template, frame, initial)
+        # Every once in a while try using homography
+        if self.step_id % 1 == 0 or self.dst_tracked_points.shape[0] == 0:
+
+            # Take initial estimation
+            self.initial_estimation(template, frame)
+
+        # Else, just use optical flow tracking to handle movements
+        # else:
+        #     self.optical_flow_tracking(template, frame)
+
+        # # Refinement process
+        # refine = self.refinement_process(template, frame, initial)
+
+        # Update step id
+        self.step_id += 1
+        self.previous_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        
+        # Compute the time it takes to take step
+        toc = time.time()
+        self.fps_deque.append(1/(toc-tic))
+        fps = np.average(self.fps_deque, axis=0, weights=[1 for x in range(len(self.fps_deque))])
 
         return {
-            'initial': initial,
-            'refine': {},
-            'final': {}
+            'M': self.M, 
+            'corners': self.corners, 
+            'tracked_points': self.dst_tracked_points,
+            'fps': fps
         }
+

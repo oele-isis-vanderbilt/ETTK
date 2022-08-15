@@ -1,5 +1,6 @@
 # Built-in Imports
 import os
+import sys
 import pathlib
 import ast
 import pdb
@@ -24,24 +25,31 @@ CWD = pathlib.Path(os.path.abspath(__file__)).parent
 # TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec3_v4'
 # TEST_IMAGE_PATH = CWD/'data'/'resources'/'paper_v4'/'UnwrappingthePast-PRINT-1.png'
 
-TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec4_v4'
-TEST_IMAGE_PATH = CWD/'data'/'resources'/'paper_v4'/'UnwrappingthePast-PRINT-3.png'
+# TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec4_v4'
+# TEST_IMAGE_PATH = CWD/'data'/'resources'/'paper_v4'/'UnwrappingthePast-PRINT-3.png'
+
+# TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec1_v5'
+# TEST_IMAGE_PATH = CWD/'data'/'resources'/'paper_v5'/'UnwrappingthePast-PRINT-1.png'
 
 # TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_rec1_v1'
 # TEST_IMAGE_PATH = CWD/'data'/'resources'/'computer'/'computer_screenshot.png'
 
 # TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_rec1_v2'
-# TEST_IMAGE_PATH = CWD/'data'/'resources'/'computer'/'computer_screenshot_large_text.png'
+TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_rec1_v3'
+TEST_IMAGE_PATH = CWD/'data'/'resources'/'computer'/'computer_screenshot_large_text.png'
 
-VIDEO_START_INDEX = 1000
+# VIDEO_START_INDEX = 1000
+VIDEO_START_INDEX = 0
 
-TRIM_MARGIN_X = 80
-TRIM_MARGIN_Y_TOP = 100
-TRIM_MARGIN_Y_BOTTOM = 150
+# TRIM_MARGIN_X = 80
+# TRIM_MARGIN_Y_TOP = 100
+# TRIM_MARGIN_Y_BOTTOM = 150
 
-# TRIM_MARGIN_X = 1
-# TRIM_MARGIN_Y_TOP = 1
-# TRIM_MARGIN_Y_BOTTOM = 1
+TRIM_MARGIN_X = 1
+TRIM_MARGIN_Y_TOP = 1
+TRIM_MARGIN_Y_BOTTOM = 1
+
+BLACK_MARGIN_SIZE = 50
 
 FIX_RADIUS = 15
 FIX_COLOR = (0, 0, 255)
@@ -54,7 +62,10 @@ assert TEST_IMAGE_PATH.exists()
 def cap():
     
     # Load the video and get a single frame
-    cap = cv2.VideoCapture(str(TEST_TOBII_REC_PATH/'scenevideo.mp4'), 0)
+    video_path = TEST_TOBII_REC_PATH/'scenevideo.mp4'
+    assert video_path.exists()
+
+    cap = cv2.VideoCapture(str(video_path), 0)
     cap.set(cv2.CAP_PROP_POS_FRAMES, VIDEO_START_INDEX)
 
     return cap
@@ -66,82 +77,55 @@ def template():
 
     # Might need to trim the margins for now
     template = template[TRIM_MARGIN_Y_TOP:-TRIM_MARGIN_Y_BOTTOM, TRIM_MARGIN_X:-TRIM_MARGIN_X]
-
-    return template
-
-def test_step_single_frame(template, cap):
-    
-    ret, frame = cap.read()
-    draw_frame = frame.copy()
  
-    # Make sure the frame is valid
-    assert ret and isinstance(frame, np.ndarray)
-
-    # Create planer tracker
-    planer_tracker = ettk.PlanerTracker()
-
-    # Apply step
-    result = planer_tracker.step(template, frame)
-
-    # Draw paper outline
-    draw_frame = ettk.utils.draw_homography_outline(draw_frame, result['dst'], color=(0,255,0))
-
-    colors = [
-        (255,255,255),
-        (255,0,0),
-        (255,0,255),
-        (0,0,255),
-        (0,255,0)
-    ]
-
-    # Extract the result content
-    lines = result['hough_lines']['lines']
-    line_clusters = result['hough_lines']['line_clusters']
-    outline = result['hough_lines']['outline_preds']
-    corners = result['hough_lines']['corners_pred']
-    edges = result['hough_lines']['edges']
-    
-    # Draw lines
-    draw_frame = ettk.utils.draw_hough_lines(draw_frame, lines, color=colors[0], thickness=2)
-
-    # Draw the line clusters
-    for cluster_lines, color in zip(line_clusters, colors[1:]):
-        draw_frame = ettk.utils.draw_hough_lines(draw_frame, cluster_lines, color=color, thickness=3)
-
-    # Draw the outline
-    for line, color in zip(outline, colors[1:]):
-        draw_frame = ettk.utils.draw_hough_lines(draw_frame, line, color=color, thickness=5)
-
-    # Draw the corners
-    draw_frame = ettk.utils.draw_pts(draw_frame, corners, color=(0,0,255), radius=10)
-    
-    # draw match lines
-    draw_frame = cv2.drawMatches(
+    # Put the padding
+    black_margin_template = cv2.copyMakeBorder(
         template, 
-        result['homography']['kpts1'], 
-        draw_frame, 
-        result['homography']['kpts2'], 
-        result['homography']['dmatches'][:20],
-        None, 
-        flags=2
+        BLACK_MARGIN_SIZE,
+        BLACK_MARGIN_SIZE,
+        BLACK_MARGIN_SIZE,
+        BLACK_MARGIN_SIZE,
+        cv2.BORDER_CONSTANT,
+        value=[0,0,0]
     )
+    
+    # Get the size of the new template
+    h, w = black_margin_template.shape[:2]
 
-    # Create a visual representation with everything
-    visual_output = ettk.utils.combine_frames(draw_frame, edges)
+    # Draw the circles
+    cv2.circle(black_margin_template, (BLACK_MARGIN_SIZE//2+1, BLACK_MARGIN_SIZE//2+1), 3, (255,255,255), 15)
+    cv2.circle(black_margin_template, (w-BLACK_MARGIN_SIZE//2+1, BLACK_MARGIN_SIZE//2+1), 3, (255,255,255), 15)
+    cv2.circle(black_margin_template, (BLACK_MARGIN_SIZE//2+1, h-BLACK_MARGIN_SIZE//2+1), 3, (255,255,255), 15)
+    cv2.circle(black_margin_template, (w-BLACK_MARGIN_SIZE//2+1, h-BLACK_MARGIN_SIZE//2+1), 3, (255,255,255), 15)
 
-    cv2.namedWindow('output', cv2.WINDOW_NORMAL)
-    cv2.imshow('output', visual_output)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    # cv2.imshow('template', black_margin_template)
+    # cv2.waitKey(0)
+    
+    return black_margin_template
 
-def test_initial_estimate_video(template, cap):
+@pytest.fixture
+def tracker():
 
+    FLANN_INDEX_KDTREE = 1 
+    index_params = dict(algorithm = FLANN_INDEX_KDTREE,
+                    trees = 5)
+
+    search_params = dict(checks = 50) 
+    
+    # Create tracker
+    tracker = ettk.PlanerTracker(
+        # feature_extractor=cv2.xfeatures2d.FREAK_create()
+        feature_extractor=cv2.AKAZE_create(),
+        # matcher=cv2.FlannBasedMatcher(index_params, search_params)
+    )
+    
+    return tracker
+
+def test_speed_video(cap, template):
+    
     # Load the video and get a single frame
     ret, frame = cap.read()
-
-    # Create tracker
-    planer_tracker = ettk.PlanerTracker()
-    
+ 
     # Get the size of the video
     h, w, _ = frame.shape
 
@@ -149,6 +133,9 @@ def test_initial_estimate_video(template, cap):
 
     # Set the starting point
     cap.set(cv2.CAP_PROP_POS_FRAMES, VIDEO_START_INDEX)
+
+    # Feature-point detector
+    feature_detector = cv2.KAZE_create() # Use AKAZE
 
     # Then perform homography
     while(True):
@@ -158,13 +145,12 @@ def test_initial_estimate_video(template, cap):
 
             # Make a copy to draw
             draw_frame = frame.copy()
-            
-            # Apply homography
-            M, corners = planer_tracker.initial_estimation(template, frame)
 
-            # Draw paper outline
-            draw_frame = ettk.utils.draw_homography_outline(draw_frame, corners, color=(0,255,0))
+            # Keypoint (kp) detection and calculate descriptors (des)
+            # kp, des = feature_detector.detectAndCompute(frame, None)
+            kp, des = feature_detector.compute(frame, None)
             
+            # Create a visual representation with everything
             cv2.imshow('output', draw_frame)
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -172,17 +158,16 @@ def test_initial_estimate_video(template, cap):
         else:
             break
 
+        # break
+
     # Closing the video
     cv2.destroyAllWindows()
 
-def test_step_video(template, cap):
-    
+def test_step_video(template, cap, tracker):
+
     # Load the video and get a single frame
     ret, frame = cap.read()
-
-    # Create tracker
-    planer_tracker = ettk.PlanerTracker()
-    
+ 
     # Get the size of the video
     h, w, _ = frame.shape
 
@@ -210,46 +195,17 @@ def test_step_video(template, cap):
             draw_frame = frame.copy()
             
             # Apply homography
-            result = planer_tracker.step(template, frame)
+            result = tracker.step(template, frame)
             
             # Draw paper outline
-            draw_frame = ettk.utils.draw_homography_outline(draw_frame, result['dst'], color=(0,255,0))
+            draw_frame = ettk.utils.draw_homography_outline(draw_frame, result['corners'], color=(0,255,0))
+
+            # Draw the tracked points
+            draw_frame = ettk.utils.draw_pts(draw_frame, result['tracked_points'])
+            draw_frame = ettk.utils.draw_text(draw_frame, f"{result['fps']:.2f}", color=(0,0,255))
             
-            # Extract the result content
-            lines = result['hough_lines']['lines']
-            line_clusters = result['hough_lines']['line_clusters']
-            outline = result['hough_lines']['outline_preds']
-            corners = result['hough_lines']['corners_pred']
-            edges = result['hough_lines']['edges']
-            
-            # Draw lines
-            draw_frame = ettk.utils.draw_hough_lines(draw_frame, lines, color=colors[0], thickness=2)
-
-            # Draw the line clusters
-            for cluster_lines, color in zip(line_clusters, colors[1:]):
-                draw_frame = ettk.utils.draw_hough_lines(draw_frame, cluster_lines, color=color, thickness=3)
-
-            # Draw the outline
-            for line, color in zip(outline, colors[1:]):
-                draw_frame = ettk.utils.draw_hough_lines(draw_frame, line, color=color, thickness=5)
-
-            # Draw the corners
-            draw_frame = ettk.utils.draw_pts(draw_frame, corners, color=(0,0,255), radius=10)
-            
-            # draw match lines
-            draw_frame = cv2.drawMatches(
-                template, 
-                result['homography']['kpts1'], 
-                draw_frame, 
-                result['homography']['kpts2'], 
-                result['homography']['dmatches'][:20],
-                None, 
-                flags=2
-            )
-
             # Create a visual representation with everything
-            visual_output = ettk.utils.combine_frames(draw_frame, edges)
-            cv2.imshow('output', visual_output)
+            cv2.imshow('output', draw_frame)
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
@@ -261,7 +217,7 @@ def test_step_video(template, cap):
     # Closing the video
     cv2.destroyAllWindows()
 
-def test_step_video_with_eye_tracking(template, cap):
+def test_step_video_with_eye_tracking(template, cap, tracker):
     
     # Load the video and get a single frame
     ret, frame = cap.read()
@@ -270,7 +226,7 @@ def test_step_video_with_eye_tracking(template, cap):
     gaze_df = ettk.utils.tobii.load_gaze_data(TEST_TOBII_REC_PATH)
     
     # Create tracker
-    planer_tracker = ettk.PlanerTracker()
+    tracker = ettk.PlanerTracker()
 
     # Get the size of the video
     h, w, _ = frame.shape
@@ -310,7 +266,7 @@ def test_step_video_with_eye_tracking(template, cap):
             draw_frame = cv2.circle(frame.copy(), fix, FIX_RADIUS, FIX_COLOR, FIX_THICKNESS)
             
             # Apply homography
-            result = planer_tracker.step(template, frame)
+            result = tracker.step(template, frame)
 
             if type(result['M']) == type(None):
                 continue

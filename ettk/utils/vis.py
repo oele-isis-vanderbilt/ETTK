@@ -1,4 +1,5 @@
 from typing import List
+import pdb
 
 # Third-party Imports
 import numpy as np
@@ -34,11 +35,12 @@ def combine_frames(img1, img2):
 
     return vis
 
-def draw_text(img:np.ndarray, text:str, color:tuple=(255,0,0), location:tuple=(50,0)) -> np.ndarray:
+def draw_text(img:np.ndarray, text:str, color:tuple=(255,0,0), location:tuple=(50,50)) -> np.ndarray:
     return cv2.putText(img, text, location, cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2, cv2.LINE_AA)
 
 def draw_homography_outline(img:np.ndarray, dst:np.ndarray, color:tuple=(255,0,0)) -> np.ndarray:
-    
+
+    # pdb.set_trace()
     if type(dst) != type(None):
         # draw found regions
         return cv2.polylines(img, [dst], True, color, 3, cv2.LINE_AA)
@@ -84,6 +86,11 @@ def draw_pts(
         color:tuple=(255,0,0), 
         radius:int=2
     ) -> np.ndarray:
+
+    if type(pts) == type(None):
+        return img
+    elif len(pts.shape) == 3:
+        pts = pts[:,0,:]
     
     # Make copy to safely draw
     draw_img = img.copy()
