@@ -13,6 +13,8 @@ import cv2
 import pytest
 import numpy as np
 import matplotlib.pyplot as plt
+import imutils
+import pandas as pd
 
 # Internal Imports
 import ettk
@@ -34,12 +36,12 @@ CWD = pathlib.Path(os.path.abspath(__file__)).parent
 # TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_rec1_v1'
 # TEST_IMAGE_PATH = CWD/'data'/'resources'/'computer'/'computer_screenshot.png'
 
-# TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_rec1_v2'
-TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_rec1_v3'
+TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_rec1_v2'
+# TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_rec1_v3'
 TEST_IMAGE_PATH = CWD/'data'/'resources'/'computer'/'computer_screenshot_large_text.png'
 
-# VIDEO_START_INDEX = 1000
-VIDEO_START_INDEX = 0
+VIDEO_START_INDEX = 1000
+# VIDEO_START_INDEX = 0
 
 # TRIM_MARGIN_X = 80
 # TRIM_MARGIN_Y_TOP = 100
@@ -51,9 +53,9 @@ TRIM_MARGIN_Y_BOTTOM = 1
 
 BLACK_MARGIN_SIZE = 50
 
-FIX_RADIUS = 15
+FIX_RADIUS = 10
 FIX_COLOR = (0, 0, 255)
-FIX_THICKNESS = 5
+FIX_THICKNESS = 3
 
 assert TEST_TOBII_REC_PATH.exists() 
 assert TEST_IMAGE_PATH.exists()
@@ -66,6 +68,8 @@ def cap():
     assert video_path.exists()
 
     cap = cv2.VideoCapture(str(video_path), 0)
+    length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    assert length > VIDEO_START_INDEX+1
     cap.set(cv2.CAP_PROP_POS_FRAMES, VIDEO_START_INDEX)
 
     return cap
@@ -116,6 +120,8 @@ def tracker():
     tracker = ettk.PlanerTracker(
         # feature_extractor=cv2.xfeatures2d.FREAK_create()
         feature_extractor=cv2.AKAZE_create(),
+        alpha=0.5
+        # feature_extractor=cv2.BRISK_create(),
         # matcher=cv2.FlannBasedMatcher(index_params, search_params)
     )
     
@@ -135,7 +141,8 @@ def test_speed_video(cap, template):
     cap.set(cv2.CAP_PROP_POS_FRAMES, VIDEO_START_INDEX)
 
     # Feature-point detector
-    feature_detector = cv2.KAZE_create() # Use AKAZE
+    # feature_detector = cv2.KAZE_create() # Use AKAZE
+    feature_detector=cv2.BRISK_create(1000)
 
     # Then perform homography
     while(True):
@@ -176,24 +183,18 @@ def test_step_video(template, cap, tracker):
     # Set the starting point
     cap.set(cv2.CAP_PROP_POS_FRAMES, VIDEO_START_INDEX)
 
-    # Define the colors for the lines
-    colors = [
-        (255,255,255),
-        (255,0,0),
-        (255,0,255),
-        (0,0,255),
-        (0,255,0)
-    ]
-
     # Then perform homography
     while(True):
 
         ret, frame = cap.read()
         if ret:
+            
+            # Input frame
+            frame = imutils.resize(frame, width=1000)
 
             # Make a copy to draw
             draw_frame = frame.copy()
-            
+ 
             # Apply homography
             result = tracker.step(template, frame)
             
@@ -224,14 +225,9 @@ def test_step_video_with_eye_tracking(template, cap, tracker):
     
     # Load other eye-tracking information
     gaze_df = ettk.utils.tobii.load_gaze_data(TEST_TOBII_REC_PATH)
+    # gaze_df = pd.DataFrame({'timestamp':[]})
     
-    # Create tracker
-    tracker = ettk.PlanerTracker()
-
-    # Get the size of the video
-    h, w, _ = frame.shape
-    
-    # Determine fixation timestamp setup information
+     # Determine fixation timestamp setup information
     fps = cap.get(cv2.CAP_PROP_FPS)
 
     cv2.namedWindow('output', cv2.WINDOW_NORMAL)
@@ -249,6 +245,12 @@ def test_step_video_with_eye_tracking(template, cap, tracker):
         ret, frame = cap.read()
 
         if ret:
+            
+            # Input frame
+            frame = imutils.resize(frame, width=1500)
+
+            # Get the size of the video
+            h, w, _ = frame.shape
         
             # Get fixation
             current_time = (VIDEO_START_INDEX+video_index_counter) * (1/fps)
@@ -261,37 +263,31 @@ def test_step_video_with_eye_tracking(template, cap, tracker):
                 raw_fix = ast.literal_eval(raw_fix)
             
             fix = (int(raw_fix[0]*w), int(raw_fix[1]*h))
-            
+              
             # Draw eye-tracking into the original video frame
             draw_frame = cv2.circle(frame.copy(), fix, FIX_RADIUS, FIX_COLOR, FIX_THICKNESS)
-            
+
             # Apply homography
             result = tracker.step(template, frame)
-
-            if type(result['M']) == type(None):
-                continue
             
             # Draw paper outline
-            draw_frame = ettk.utils.draw_homography_outline(draw_frame, result['dst'])
+            draw_frame = ettk.utils.draw_homography_outline(draw_frame, result['corners'], color=(0,255,0))
+
+            # Draw the tracked points
+            draw_frame = ettk.utils.draw_pts(draw_frame, result['tracked_points'])
+            draw_frame = ettk.utils.draw_text(draw_frame, f"{result['fps']:.2f}", color=(0,0,255))
 
             # Apply homography to fixation and draw it on the page
-            fix_pt = np.float32([ [fix[0], fix[1]] ]).reshape(-1,1,2)
-            fix_dst = cv2.perspectiveTransform(fix_pt, np.linalg.inv(result['M'])).flatten().astype(np.int32)
+            if type(result['M']) != type(None):
+                fix_pt = np.float32([ [fix[0], fix[1]] ]).reshape(-1,1,2)
+                fix_dst = cv2.perspectiveTransform(fix_pt, np.linalg.inv(result['M'])).flatten().astype(np.int32)
+                draw_template = cv2.circle(template.copy(), fix_dst, FIX_RADIUS, FIX_COLOR, FIX_THICKNESS)
+            else:
+                draw_template = template.copy()
 
-            draw_template = cv2.circle(template.copy(), fix_dst, FIX_RADIUS, FIX_COLOR, FIX_THICKNESS)
-
-            # draw match lines
-            output = cv2.drawMatches(
-                draw_template, 
-                result['homography']['kpts1'], 
-                draw_frame, 
-                result['homography']['kpts2'], 
-                result['homography']['dmatches'][:20],
-                None, 
-                flags=2
-            )
-            new_output = output.astype(np.uint8)
-            cv2.imshow('output', new_output)
+            # Combine frames
+            vis_frame = ettk.utils.combine_frames(draw_template, draw_frame)
+            cv2.imshow('output', vis_frame)
             
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
