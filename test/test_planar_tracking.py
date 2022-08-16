@@ -40,7 +40,7 @@ TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_rec1_v2'
 # TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_rec1_v3'
 TEST_IMAGE_PATH = CWD/'data'/'resources'/'computer'/'computer_screenshot_large_text.png'
 
-VIDEO_START_INDEX = 1000
+VIDEO_START_INDEX = 1500
 # VIDEO_START_INDEX = 0
 
 # TRIM_MARGIN_X = 80
@@ -117,7 +117,7 @@ def tracker():
     search_params = dict(checks = 50) 
     
     # Create tracker
-    tracker = ettk.PlanerTracker(
+    tracker = ettk.PlanarTracker(
         # feature_extractor=cv2.xfeatures2d.FREAK_create()
         feature_extractor=cv2.AKAZE_create(),
         alpha=0.5
@@ -190,7 +190,7 @@ def test_step_video(template, cap, tracker):
         if ret:
             
             # Input frame
-            frame = imutils.resize(frame, width=1000)
+            # frame = imutils.resize(frame, width=1500)
 
             # Make a copy to draw
             draw_frame = frame.copy()

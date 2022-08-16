@@ -29,5 +29,5 @@ LOGGING_CONFIG = {
 # Setup the logging configuration
 logging.config.dictConfig(LOGGING_CONFIG)
 
-from .planer_tracking import PlanerTracker
+from .planar_tracking import PlanarTracker
 from . import utils

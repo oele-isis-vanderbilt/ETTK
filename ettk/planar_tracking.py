@@ -18,12 +18,15 @@ LK_PARAMS = dict( winSize  = (15, 15),
                   maxLevel = 2,
                   criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
 
-class PlanerTracker():
+class PlanarTracker():
 
+    last_seen_counter = 0
     step_id = 0
+
     previous_frame = None
     previous_template = None
     previous_template_data = None
+
     fps_deque = collections.deque(maxlen=100)
 
     def __init__(
@@ -31,8 +34,9 @@ class PlanerTracker():
             feature_extractor:Any=cv2.ORB_create(), 
             matcher:Any=cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True),
             alpha:float=0.2,
-            homography_every_frame:int=3,
-            max_corner_movement:float=50
+            homography_every_frame:int=5,
+            max_corner_movement:float=50,
+            object_memory_limit:int=5
         ):
 
         # Feature Matching parameters
@@ -41,15 +45,16 @@ class PlanerTracker():
         self.alpha = alpha
         self.max_corner_movement = max_corner_movement
         self.homography_every_frame = homography_every_frame
+        self.object_memory_limit = object_memory_limit
 
         # Initialize the tracker
         self.initialize_tracker()
 
     def initialize_tracker(self):
 
+        # Reseting object detection
         self.M = None
         self.object_found = False
-        self.last_seen_counter = 0
         self.src_tracked_points = np.empty((0,1,2))
         self.dst_tracked_points = np.empty((0,1,2))
         self.corners = np.empty((0,1,2))
@@ -154,8 +159,6 @@ class PlanerTracker():
         if type(M) != type(None):
             # Fine-tune estimation
             self.M, self.corners = self._fine_tune_homography(M, template_corners)
-        else:
-            self.last_seen_counter += 1
 
         # Obtain the locations of the tracked points
         if type(self.M) != type(None):
@@ -175,6 +178,8 @@ class PlanerTracker():
                 self.M = (1-self.alpha)*self.M + (self.alpha)*M
             else:
                 self.M = M
+        else:
+            self.last_seen_counter += 1
 
         # Then compute the new points
         if type(self.M) != type(None):
@@ -240,17 +245,18 @@ class PlanerTracker():
         tic = time.time()
 
         # Every once in a while try using homography
-        if self.step_id % self.homography_every_frame == 0 or self.dst_tracked_points.shape[0] == 0:
+        if self.step_id % self.homography_every_frame == 0:# or self.dst_tracked_points.shape[0] == 0:
 
             # Take initial estimation
             self.initial_estimation(template, frame)
 
         # Else, just use optical flow tracking to handle movements
-        else:
+        elif self.dst_tracked_points.shape[0] != 0:
             self.optical_flow_tracking(template, frame)
 
         # If the object is not found in a long time, raise Flag
-        if self.last_seen_counter > 5:
+        logger.debug(self.last_seen_counter)
+        if self.last_seen_counter > self.object_memory_limit:
             self.object_found = False
             self.initialize_tracker()
 
