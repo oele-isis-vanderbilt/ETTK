@@ -25,7 +25,9 @@ CWD = pathlib.Path(os.path.abspath(__file__)).parent
 # TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec1_v4'
 # TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec2_v4'
 # TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec3_v4'
-# TEST_IMAGE_PATH = CWD/'data'/'resources'/'paper_v4'/'UnwrappingthePast-PRINT-1.png'
+TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec5_v4_multi_paper'
+TEST_IMAGE_PATH = CWD/'data'/'resources'/'paper_v4'/'UnwrappingthePast-PRINT-1.png'
+TEST_TEMPLATE_DIR = CWD/'data'/'resources'/'paper_v4'
 
 # TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec4_v4'
 # TEST_IMAGE_PATH = CWD/'data'/'resources'/'paper_v4'/'UnwrappingthePast-PRINT-3.png'
@@ -36,12 +38,13 @@ CWD = pathlib.Path(os.path.abspath(__file__)).parent
 # TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_rec1_v1'
 # TEST_IMAGE_PATH = CWD/'data'/'resources'/'computer'/'computer_screenshot.png'
 
-TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_rec1_v2'
+# TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_rec1_v2'
 # TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_rec1_v3'
-TEST_IMAGE_PATH = CWD/'data'/'resources'/'computer'/'computer_screenshot_large_text.png'
+# TEST_IMAGE_PATH = CWD/'data'/'resources'/'computer'/'computer_screenshot_large_text.png'
 
-VIDEO_START_INDEX = 1500
-# VIDEO_START_INDEX = 0
+# VIDEO_START_INDEX = 5000
+# VIDEO_START_INDEX = 2200
+VIDEO_START_INDEX = 0
 
 # TRIM_MARGIN_X = 80
 # TRIM_MARGIN_Y_TOP = 100
@@ -59,6 +62,7 @@ FIX_THICKNESS = 3
 
 assert TEST_TOBII_REC_PATH.exists() 
 assert TEST_IMAGE_PATH.exists()
+assert TEST_TEMPLATE_DIR.exists()
 
 @pytest.fixture
 def cap():
@@ -83,29 +87,39 @@ def template():
     template = template[TRIM_MARGIN_Y_TOP:-TRIM_MARGIN_Y_BOTTOM, TRIM_MARGIN_X:-TRIM_MARGIN_X]
  
     # Put the padding
-    black_margin_template = cv2.copyMakeBorder(
-        template, 
-        BLACK_MARGIN_SIZE,
-        BLACK_MARGIN_SIZE,
-        BLACK_MARGIN_SIZE,
-        BLACK_MARGIN_SIZE,
-        cv2.BORDER_CONSTANT,
-        value=[0,0,0]
-    )
+    # black_margin_template = cv2.copyMakeBorder(
+    #     template, 
+    #     BLACK_MARGIN_SIZE,
+    #     BLACK_MARGIN_SIZE,
+    #     BLACK_MARGIN_SIZE,
+    #     BLACK_MARGIN_SIZE,
+    #     cv2.BORDER_CONSTANT,
+    #     value=[0,0,0]
+    # )
     
     # Get the size of the new template
-    h, w = black_margin_template.shape[:2]
+    # h, w = black_margin_template.shape[:2]
 
-    # Draw the circles
-    cv2.circle(black_margin_template, (BLACK_MARGIN_SIZE//2+1, BLACK_MARGIN_SIZE//2+1), 3, (255,255,255), 15)
-    cv2.circle(black_margin_template, (w-BLACK_MARGIN_SIZE//2+1, BLACK_MARGIN_SIZE//2+1), 3, (255,255,255), 15)
-    cv2.circle(black_margin_template, (BLACK_MARGIN_SIZE//2+1, h-BLACK_MARGIN_SIZE//2+1), 3, (255,255,255), 15)
-    cv2.circle(black_margin_template, (w-BLACK_MARGIN_SIZE//2+1, h-BLACK_MARGIN_SIZE//2+1), 3, (255,255,255), 15)
+    # # Draw the circles
+    # cv2.circle(black_margin_template, (BLACK_MARGIN_SIZE//2+1, BLACK_MARGIN_SIZE//2+1), 3, (255,255,255), 15)
+    # cv2.circle(black_margin_template, (w-BLACK_MARGIN_SIZE//2+1, BLACK_MARGIN_SIZE//2+1), 3, (255,255,255), 15)
+    # cv2.circle(black_margin_template, (BLACK_MARGIN_SIZE//2+1, h-BLACK_MARGIN_SIZE//2+1), 3, (255,255,255), 15)
+    # cv2.circle(black_margin_template, (w-BLACK_MARGIN_SIZE//2+1, h-BLACK_MARGIN_SIZE//2+1), 3, (255,255,255), 15)
 
     # cv2.imshow('template', black_margin_template)
     # cv2.waitKey(0)
     
-    return black_margin_template
+    # return black_margin_template
+    return template
+
+@pytest.fixture
+def templates():
+
+    templates = []
+    for template_filepath in TEST_TEMPLATE_DIR.iterdir():
+        templates.append(cv2.imread(str(template_filepath)))
+
+    return templates
 
 @pytest.fixture
 def tracker():
@@ -218,7 +232,10 @@ def test_step_video(template, cap, tracker):
     # Closing the video
     cv2.destroyAllWindows()
 
-def test_step_video_with_eye_tracking(template, cap, tracker):
+def test_step_video_with_eye_tracking(templates, cap, tracker):
+
+    # Register the templates
+    templates_ids = tracker.register_templates(templates)
     
     # Load the video and get a single frame
     ret, frame = cap.read()
@@ -247,7 +264,7 @@ def test_step_video_with_eye_tracking(template, cap, tracker):
         if ret:
             
             # Input frame
-            frame = imutils.resize(frame, width=1500)
+            frame = imutils.resize(frame, width=1000)
 
             # Get the size of the video
             h, w, _ = frame.shape
@@ -268,7 +285,13 @@ def test_step_video_with_eye_tracking(template, cap, tracker):
             draw_frame = cv2.circle(frame.copy(), fix, FIX_RADIUS, FIX_COLOR, FIX_THICKNESS)
 
             # Apply homography
-            result = tracker.step(template, frame)
+            result = tracker.step(frame)
+
+            # Select the template that was detected
+            if not isinstance(result['template_id'], type(None)):
+                template = templates[templates_ids.index(result['template_id'])]
+            else:
+                template = np.zeros_like(draw_frame)
             
             # Draw paper outline
             draw_frame = ettk.utils.draw_homography_outline(draw_frame, result['corners'], color=(0,255,0))

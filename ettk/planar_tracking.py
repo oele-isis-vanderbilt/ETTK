@@ -2,14 +2,16 @@
 from typing import Any, Optional, Tuple, List
 import time
 import collections
+import logging
+logger = logging.getLogger(__name__)
 
 # Third-party
 import numpy as np
 import cv2
 import numpy as np
 
-import logging
-logger = logging.getLogger(__name__)
+# Internal Imports
+from . import utils
 
 import pdb
 
@@ -23,10 +25,8 @@ class PlanarTracker():
     last_seen_counter = 0
     step_id = 0
 
+    template_database = {}
     previous_frame = None
-    previous_template = None
-    previous_template_data = None
-
     fps_deque = collections.deque(maxlen=100)
 
     def __init__(
@@ -54,7 +54,8 @@ class PlanarTracker():
 
         # Reseting object detection
         self.M = None
-        self.object_found = False
+        self.template = None
+        self.found_template_id = None
         self.src_tracked_points = np.empty((0,1,2))
         self.dst_tracked_points = np.empty((0,1,2))
         self.corners = np.empty((0,1,2))
@@ -63,18 +64,18 @@ class PlanarTracker():
             self, 
             M:np.ndarray, 
             template_corners:np.ndarray,
-            max_corner_movement_check:bool=False
+            max_corner_movement_check:bool=False,
         ):
 
         # Obvious check
         if type(M) == type(None):
             return False
-        
+
         # Compute corners with the acquired corners
         corners = np.array(cv2.perspectiveTransform(template_corners, M), dtype=np.int32).reshape((4,2))
 
         # Check if there is a previous M
-        if max_corner_movement_check and type(self.M) != type(None):
+        if max_corner_movement_check and not isinstance(self.M, type(None)):
             prev_corners = np.array(cv2.perspectiveTransform(template_corners, self.M), dtype=np.int32).reshape((4,2))
 
             # Determine total distance
@@ -114,18 +115,12 @@ class PlanarTracker():
         else:
             return False
 
-    def perform_homography(self, template:np.ndarray, frame:np.ndarray):
-        
-        # find the keypoints and descriptors with SIFT
-        if type(self.previous_template) == type(None) or (self.previous_template != template).all():
-            self.previous_template_data = self.feature_extractor.detectAndCompute(template,None)
-            # self.previous_template_data = self.feature_extractor.compute(template,None)
-            self.previous_template = template
-
+    def perform_homography(self, template_id:int):
+       
         # Obtain the keypoints
-        kpts1, descs1 = self.previous_template_data
-        kpts2, descs2 = self.feature_extractor.detectAndCompute(frame,None)
-        # kpts2, descs2 = self.feature_extractor.compute(frame,None)
+        kpts1 = self.template_database[template_id]['kpts']
+        descs1 = self.template_database[template_id]['descs']
+        kpts2, descs2 = self.feature_extractor.detectAndCompute(self.frame,None)
 
         # Match between keypoints
         matches = self.matcher.match(descs1, descs2)
@@ -141,40 +136,19 @@ class PlanarTracker():
 
         # find homography matrix and do perspective transform
         M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-
-        return M, kpts1, kpts2, dmatches
-    
-    def initial_estimation(self, template:np.ndarray, frame:np.ndarray):
-        
-        # Perform homography
-        M, kpts1, kpts2, dmatches = self.perform_homography(template, frame)
-
-        # Obtain size of the template
-        h, w = template.shape[:2]
-
-        # First get the destinatin points
-        template_corners = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
-
-        # Check if we should stop
-        if type(M) != type(None):
-            # Fine-tune estimation
-            self.M, self.corners = self._fine_tune_homography(M, template_corners)
-
-        # Obtain the locations of the tracked points
-        if type(self.M) != type(None):
-            self.src_tracked_points = np.float32([kpts1[m.queryIdx].pt for m in dmatches]).reshape(-1,1,2)
-            self.dst_tracked_points = np.array(cv2.perspectiveTransform(self.src_tracked_points, self.M), dtype=np.int32).reshape((-1,1,2))
-    
-    def _fine_tune_homography(self, M:np.ndarray, template_corners:np.ndarray):
-
+       
+        # Extracting the template corners
+        template_corners = self.template_database[template_id]['template_corners']
+                   
+        # Now fine-tuning the homography matrix
         if self.check_if_homography_matrix_valid(M, template_corners):
            
             # Update the last seen counter
             self.last_seen_counter = 0
-            self.object_found = True
+            self.found_template_id = template_id
             
             # Mix resulting matrix
-            if type(self.M) != type(None):
+            if not isinstance(self.M, type(None)):
                 self.M = (1-self.alpha)*self.M + (self.alpha)*M
             else:
                 self.M = M
@@ -182,23 +156,31 @@ class PlanarTracker():
             self.last_seen_counter += 1
 
         # Then compute the new points
-        if type(self.M) != type(None):
-            corners = np.array(cv2.perspectiveTransform(template_corners, self.M), dtype=np.int32)
+        if not isinstance(self.M, type(None)):
+            self.corners = np.array(cv2.perspectiveTransform(template_corners, self.M), dtype=np.int32)
         else:
-            corners = np.empty((0,1,2))
-
-        return self.M, corners
-
-    def optical_flow_tracking(self, template:np.ndarray, frame:np.ndarray):
+            self.corners = np.empty((0,1,2))
         
-        # Obtain size of the template
-        h, w = template.shape[:2]
+        # Obtain the locations of the tracked points
+        if not isinstance(self.M, type(None)):
+            self.src_tracked_points = np.float32([kpts1[m.queryIdx].pt for m in dmatches]).reshape(-1,1,2)
+            self.dst_tracked_points = np.array(cv2.perspectiveTransform(self.src_tracked_points, self.M), dtype=np.int32).reshape((-1,1,2))
+    
+    def initial_estimation(self):
+        
+        # If no object is found, look throughout the database
+        if isinstance(self.found_template_id, type(None)):
+            for template_id in self.template_database.keys():
+                self.perform_homography(template_id)
+                if not isinstance(self.found_template_id, type(None)):
+                    break
+        else:
+            self.perform_homography(self.found_template_id)
 
-        # First get the destinatin points
-        template_corners = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
+    def optical_flow_tracking(self):
 
         # Convert image to grey
-        current_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        current_frame = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
 
         # Apply optical flow
         p1, _st, _err = cv2.calcOpticalFlowPyrLK(
@@ -235,27 +217,63 @@ class PlanarTracker():
                 5.0
             )
 
+            # Extracting the template corners
+            template_corners = self.template_database[self.found_template_id]['template_corners']
+
             # Only use the generated M if it is reasonable
             if self.check_if_homography_matrix_valid(M, template_corners, max_corner_movement_check=True):
                 self.M = (1-self.alpha)*self.M + (self.alpha)*M
+
+    def register_templates(self, templates:List[np.ndarray]) -> List:
+        
+        # Compute the hash for the new templates
+        generated_hashes = []
+        for template in templates:
+
+            # Compute template's id
+            template_hash = utils.dhash(template)
+
+            # Check if the template has been added before
+            if template_hash in self.template_database:
+                continue
+            
+            # Compute additional template information
+            kpts, descs = self.feature_extractor.detectAndCompute(template, None)
+            h, w = template.shape[:2]
+            template_corners = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
+
+            # Store template into database
+            self.template_database[template_hash] = {
+                'template': template,
+                'kpts': kpts,
+                'descs': descs,
+                'template_corners': template_corners
+            }
+            generated_hashes.append(template_hash)
+
+        return generated_hashes
     
-    def step(self, template:np.ndarray, frame:np.ndarray) -> dict:
+    def step(self, frame:np.ndarray, templates:Optional[List[np.ndarray]]=None) -> dict:
+
+        # Store information to be used in other methods
+        self.frame = frame
+        if isinstance(templates, list):
+            self.register_templates(templates)
 
         # Start timing
         tic = time.time()
 
         # Every once in a while try using homography
-        if self.step_id % self.homography_every_frame == 0:# or self.dst_tracked_points.shape[0] == 0:
+        if self.step_id % self.homography_every_frame == 0:
 
             # Take initial estimation
-            self.initial_estimation(template, frame)
+            self.initial_estimation()
 
         # Else, just use optical flow tracking to handle movements
         elif self.dst_tracked_points.shape[0] != 0:
-            self.optical_flow_tracking(template, frame)
+            self.optical_flow_tracking()
 
         # If the object is not found in a long time, raise Flag
-        logger.debug(self.last_seen_counter)
         if self.last_seen_counter > self.object_memory_limit:
             self.object_found = False
             self.initialize_tracker()
@@ -270,7 +288,7 @@ class PlanarTracker():
         fps = np.average(self.fps_deque, axis=0, weights=[1 for x in range(len(self.fps_deque))])
 
         return {
-            'object_found': self.object_found,
+            'template_id': self.found_template_id,
             'M': self.M, 
             'corners': self.corners, 
             'tracked_points': self.dst_tracked_points,
