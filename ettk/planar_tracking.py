@@ -261,7 +261,7 @@ class PlanarTracker():
             self.register_templates(templates)
 
         # Start timing
-        tic = time.time()
+        tic = time.perf_counter()
 
         # Every once in a while try using homography
         if self.step_id % self.homography_every_frame == 0:
@@ -283,7 +283,7 @@ class PlanarTracker():
         self.previous_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         
         # Compute the time it takes to take step
-        toc = time.time()
+        toc = time.perf_counter()
         self.fps_deque.append(1/(toc-tic))
         fps = np.average(self.fps_deque, axis=0, weights=[1 for x in range(len(self.fps_deque))])
 
