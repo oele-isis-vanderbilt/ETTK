@@ -36,7 +36,8 @@ class PlanarTracker():
             alpha:float=0.2,
             homography_every_frame:int=5,
             max_corner_movement:float=50,
-            object_memory_limit:int=5
+            object_memory_limit:int=5,
+            use_aruco_markers:bool=True
         ):
 
         # Feature Matching parameters
@@ -46,6 +47,11 @@ class PlanarTracker():
         self.max_corner_movement = max_corner_movement
         self.homography_every_frame = homography_every_frame
         self.object_memory_limit = object_memory_limit
+
+        # Aruco initialization
+        self.use_aruco_markers = use_aruco_markers
+        self._aruco_dict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_50)
+        self._aruco_params = cv2.aruco.DetectorParameters_create()
 
         # Initialize the tracker
         self.initialize_tracker()
@@ -116,11 +122,18 @@ class PlanarTracker():
             return False
 
     def perform_homography(self, template_id:int):
-       
+
+        # Use aruco if requested 
+        if self.use_aruco_markers:
+            ...
+ 
         # Obtain the keypoints
         kpts1 = self.template_database[template_id]['kpts']
         descs1 = self.template_database[template_id]['descs']
-        kpts2, descs2 = self.feature_extractor.detectAndCompute(self.frame,None)
+
+        # Extract frame data
+        kpts2 = self.frame_data['kpts']
+        descs2 = self.frame_data['descs']
 
         # Match between keypoints
         matches = self.matcher.match(descs1, descs2)
@@ -128,7 +141,7 @@ class PlanarTracker():
 
         # If not enough matches stop
         if len(dmatches) < 4:
-            return None, kpts1, kpts2, dmatches
+            return None, kpts1, self.frame_data['kpts'], dmatches
         
         # extract the matched keypoints
         src_pts  = np.float32([kpts1[m.queryIdx].pt for m in dmatches]).reshape(-1,1,2)
@@ -167,10 +180,70 @@ class PlanarTracker():
             self.dst_tracked_points = np.array(cv2.perspectiveTransform(self.src_tracked_points, self.M), dtype=np.int32).reshape((-1,1,2))
     
     def initial_estimation(self):
+
+        # First, compute the new frame's kpts and descriptors 
+        # (instead of repeating within the next for loop
+        kpts, descs = self.feature_extractor.detectAndCompute(self.frame, None)
+        self.frame_data = {
+            'kpts': kpts,
+            'descs': descs
+        }
+
+        # If using aruco markers, find the frame's markers and check which
+        # template
+        if self.use_aruco_markers:
+
+            # Getting frame's markers
+            corners, ids, _ = cv2.aruco.detectMarkers(
+                self.frame,
+                self._aruco_dict,
+                parameters=self._aruco_params
+            )
+
+            # Type safety
+            if ids is None:
+                ids = np.array([])
+
+            self.frame_data.update({
+                 'aruco': {
+                     'corners': corners,
+                     'ids': ids
+                 }
+            })
+
+            # Only use the following template finder when having mutliple 
+            # templates
+            pdb.set_trace()
+            if len(self.template_database) >= 2:
+
+                # Use the aruco markers to find the correct template
+                inter_ids = []
+                for template_id in self.template_database:
+                    inter_ids.append(
+                        len(np.intersect1d(
+                            self.template_database[template_id]['aruco']['ids'].flatten(),
+                            self.frame_data['aruco']['ids'].flatten()
+                            ))
+                    )
+
+                pdb.set_trace()
+
+                # Only one template should be found!
+                max_inter, min_inter = max(inter_ids), min(inter_ids)
+                if max_inter == 0: # no found 
+                    self.last_seen_counter += 1
+                    return
+                elif min_inter != 0: # multiple found
+                    self.last_seen_counter += 1
+                    return
+                else: # Found template!
+                    self.found_template_id = inter_ids.index(max_inter)
+                    self.last_seen_counter = 0
         
         # If no object is found, look throughout the database
         if isinstance(self.found_template_id, type(None)):
-            for template_id in self.template_database.keys():
+
+            for template_id in self.template_database:
                 self.perform_homography(template_id)
                 if not isinstance(self.found_template_id, type(None)):
                     break
@@ -247,8 +320,23 @@ class PlanarTracker():
                 'template': template,
                 'kpts': kpts,
                 'descs': descs,
-                'template_corners': template_corners
+                'template_corners': template_corners, 
             }
+
+            # Add aruco if requested
+            if self.use_aruco_markers:
+                corners, ids, _ = cv2.aruco.detectMarkers(
+                    template,
+                    self._aruco_dict,
+                    parameters=self._aruco_params
+                ) 
+                self.template_database[template_hash].update({
+                    'aruco': {
+                        'corners': corners,
+                        'ids': ids
+                    }
+                })
+
             generated_hashes.append(template_hash)
 
         return generated_hashes

@@ -25,26 +25,28 @@ CWD = pathlib.Path(os.path.abspath(__file__)).parent
 # TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec1_v4'
 # TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec2_v4'
 # TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec3_v4'
-# TEST_IMAGE_PATH = CWD/'data'/'resources'/'paper_v4'/'UnwrappingthePast-PRINT-1.png'
+# TEST_TEMPLATE = CWD/'data'/'resources'/'paper_v4'/'UnwrappingthePast-PRINT-1.png'
 
 # TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec4_v4'
-# TEST_IMAGE_PATH = CWD/'data'/'resources'/'paper_v4'/'UnwrappingthePast-PRINT-3.png'
+# TEST_TEMPLATE = CWD/'data'/'resources'/'paper_v4'/'UnwrappingthePast-PRINT-3.png'
 
 # TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec1_v5'
-# TEST_IMAGE_PATH = CWD/'data'/'resources'/'paper_v5'/'UnwrappingthePast-PRINT-1.png'
+# TEST_TEMPLATE = CWD/'data'/'resources'/'paper_v5'/'UnwrappingthePast-PRINT-1.png'
 
-TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_v4_rec5_multi_paper'
-TEST_TEMPLATE_DIR = CWD/'data'/'resources'/'paper_v4'
+# TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_v4_rec5_multi_paper'
+# TEST_TEMPLATE = CWD/'data'/'resources'/'paper_v4'
 
-TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_v6_rec2'
-TEST_IMAGE_PATH = CWD/'data'/'resources'/'paper_v6'/'test_paper_template.png'
+# TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_v6_rec5_multi_paper'
+TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_v6_rec4'
+TEST_TEMPLATE = CWD/'data'/'resources'/'paper_v6'/'test_paper_template_1.png'
+# TEST_TEMPLATE = CWD/'data'/'resources'/'paper_v6'
 
 # TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_rec1_v1'
-# TEST_IMAGE_PATH = CWD/'data'/'resources'/'computer'/'computer_screenshot.png'
+# TEST_TEMPLATE = CWD/'data'/'resources'/'computer'/'computer_screenshot.png'
 
 # TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_rec1_v2'
 # TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_rec1_v3'
-# TEST_IMAGE_PATH = CWD/'data'/'resources'/'computer'/'computer_screenshot_large_text.png'
+# TEST_TEMPLATE = CWD/'data'/'resources'/'computer'/'computer_screenshot_large_text.png'
 
 # VIDEO_START_INDEX = 5000
 # VIDEO_START_INDEX = 2200
@@ -65,7 +67,7 @@ FIX_COLOR = (0, 0, 255)
 FIX_THICKNESS = 3
 
 assert TEST_TOBII_REC_PATH.exists() 
-assert TEST_IMAGE_PATH.exists() or TEST_TEMPLATE_DIR.exists()
+assert TEST_TEMPLATE.exists() or TEST_TEMPLATE.exists()
 
 @pytest.fixture
 def cap():
@@ -82,86 +84,25 @@ def cap():
     return cap
 
 @pytest.fixture
-def template():
-    # Load the image
-    template = cv2.imread(str(TEST_IMAGE_PATH), 0)
-
-    # Might need to trim the margins for now
-    template = template[TRIM_MARGIN_Y_TOP:-TRIM_MARGIN_Y_BOTTOM, TRIM_MARGIN_X:-TRIM_MARGIN_X]
- 
-    # Put the padding
-    # black_margin_template = cv2.copyMakeBorder(
-    #     template, 
-    #     BLACK_MARGIN_SIZE,
-    #     BLACK_MARGIN_SIZE,
-    #     BLACK_MARGIN_SIZE,
-    #     BLACK_MARGIN_SIZE,
-    #     cv2.BORDER_CONSTANT,
-    #     value=[0,0,0]
-    # )
-    
-    # Get the size of the new template
-    # h, w = black_margin_template.shape[:2]
-
-    # # Draw the circles
-    # cv2.circle(black_margin_template, (BLACK_MARGIN_SIZE//2+1, BLACK_MARGIN_SIZE//2+1), 3, (255,255,255), 15)
-    # cv2.circle(black_margin_template, (w-BLACK_MARGIN_SIZE//2+1, BLACK_MARGIN_SIZE//2+1), 3, (255,255,255), 15)
-    # cv2.circle(black_margin_template, (BLACK_MARGIN_SIZE//2+1, h-BLACK_MARGIN_SIZE//2+1), 3, (255,255,255), 15)
-    # cv2.circle(black_margin_template, (w-BLACK_MARGIN_SIZE//2+1, h-BLACK_MARGIN_SIZE//2+1), 3, (255,255,255), 15)
-
-    # cv2.imshow('template', template)
-    # cv2.waitKey(0)
-    
-    # return black_margin_template
-    return template
-
-@pytest.fixture
-def example_template():
-
-    TRIM_MARGIN_X = 40
-    TRIM_MARGIN_Y_TOP = 1
-    TRIM_MARGIN_Y_BOTTOM = 250
-    
-    # Load the image
-    template = cv2.imread(str(TEST_IMAGE_PATH), 0)
-
-    # Might need to trim the margins for now
-    template = template[TRIM_MARGIN_Y_TOP:-TRIM_MARGIN_Y_BOTTOM, TRIM_MARGIN_X:-TRIM_MARGIN_X]
- 
-    # Put the padding
-    template = cv2.copyMakeBorder(
-        template, 
-        BLACK_MARGIN_SIZE,
-        BLACK_MARGIN_SIZE,
-        BLACK_MARGIN_SIZE,
-        BLACK_MARGIN_SIZE,
-        cv2.BORDER_CONSTANT,
-        value=[0,0,0]
-    )
-    
-    # Get the size of the new template
-    # h, w = black_margin_template.shape[:2]
-
-    # # Draw the circles
-    # cv2.circle(black_margin_template, (BLACK_MARGIN_SIZE//2+1, BLACK_MARGIN_SIZE//2+1), 3, (255,255,255), 15)
-    # cv2.circle(black_margin_template, (w-BLACK_MARGIN_SIZE//2+1, BLACK_MARGIN_SIZE//2+1), 3, (255,255,255), 15)
-    # cv2.circle(black_margin_template, (BLACK_MARGIN_SIZE//2+1, h-BLACK_MARGIN_SIZE//2+1), 3, (255,255,255), 15)
-    # cv2.circle(black_margin_template, (w-BLACK_MARGIN_SIZE//2+1, h-BLACK_MARGIN_SIZE//2+1), 3, (255,255,255), 15)
-
-    cv2.imshow('template', template)
-    cv2.waitKey(0)
-    
-    # return black_margin_template
-    return template
-
-@pytest.fixture
 def templates():
+
+    if TEST_TEMPLATE.is_dir():
+        templates_filepaths = list(TEST_TEMPLATE.iterdir())
+    else:
+        templates_filepaths = [TEST_TEMPLATE]
 
     # Load multiple templates inside a directory
     templates = []
-    for template_filepath in TEST_TEMPLATE_DIR.iterdir():
+    for id, template_filepath in enumerate(templates_filepaths):
         
-        template = cv2.imread(str(template_filepath))
+        template = cv2.imread(str(template_filepath),0)
+    
+        TRIM_MARGIN_X = 40
+        TRIM_MARGIN_Y_TOP = 1
+        TRIM_MARGIN_Y_BOTTOM = 250
+    
+        # Might need to trim the margins for now
+        template = template[TRIM_MARGIN_Y_TOP:-TRIM_MARGIN_Y_BOTTOM, TRIM_MARGIN_X:-TRIM_MARGIN_X]
         
         # Put the padding
         template = cv2.copyMakeBorder(
@@ -175,6 +116,9 @@ def templates():
         )
 
         templates.append(template)
+        # cv2.imshow(f'template-{id}', template)
+    
+    # cv2.waitKey(0)
 
     return templates
 
@@ -289,11 +233,7 @@ def test_step_video(template, cap, tracker):
     # Closing the video
     cv2.destroyAllWindows()
 
-def test_step_video_with_eye_tracking(example_template, cap, tracker):
-# def test_step_video_with_eye_tracking(templates, cap, tracker):
-
-    # Templates needs to be inside a list
-    templates = [example_template]
+def test_step_video_with_eye_tracking(templates, cap, tracker):
 
     # Register the templates
     templates_ids = tracker.register_templates(templates)
@@ -353,13 +293,16 @@ def test_step_video_with_eye_tracking(example_template, cap, tracker):
                 template = templates[templates_ids.index(result['template_id'])]
             else:
                 template = np.zeros_like(draw_frame)
+
+            # Draw template id
+            draw_frame = ettk.utils.draw_text(draw_frame, str(result['template_id']), location=(0,100), color=(0,255,0))
             
             # Draw paper outline
             draw_frame = ettk.utils.draw_homography_outline(draw_frame, result['corners'], color=(0,255,0))
 
             # Draw the tracked points
             draw_frame = ettk.utils.draw_pts(draw_frame, result['tracked_points'])
-            draw_frame = ettk.utils.draw_text(draw_frame, f"{result['fps']:.2f}", color=(0,0,255))
+            draw_frame = ettk.utils.draw_text(draw_frame, f"{result['fps']:.2f}", location=(0,50), color=(0,0,255))
 
             # Apply homography to fixation and draw it on the page
             if type(result['M']) != type(None):
