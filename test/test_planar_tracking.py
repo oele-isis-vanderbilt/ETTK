@@ -1,4 +1,5 @@
 # Built-in Imports
+from typing import Literal
 import os
 import sys
 import pathlib
@@ -22,31 +23,31 @@ import ettk
 # CONSTANTS
 CWD = pathlib.Path(os.path.abspath(__file__)).parent
 
-# TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec1_v4'
-# TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec2_v4'
-# TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec3_v4'
-# TEST_TEMPLATE = CWD/'data'/'resources'/'paper_v4'/'UnwrappingthePast-PRINT-1.png'
+# PAPER_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_v4_rec1'
+# PAPER_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_v4_rec2'
+# PAPER_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_v4_rec3'
+# PAPER_TEMPLATE = CWD/'data'/'resources'/'paper_v4'/'UnwrappingthePast-PRINT-1.png'
 
-# TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec4_v4'
-# TEST_TEMPLATE = CWD/'data'/'resources'/'paper_v4'/'UnwrappingthePast-PRINT-3.png'
+# PAPER_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_v4_rec4'
+# PAPER_TEMPLATE = CWD/'data'/'resources'/'paper_v4'/'UnwrappingthePast-PRINT-3.png'
 
-# TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_rec1_v5'
-# TEST_TEMPLATE = CWD/'data'/'resources'/'paper_v5'/'UnwrappingthePast-PRINT-1.png'
+# PAPER_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_v5_rec1'
+# PAPER_TEMPLATE = CWD/'data'/'resources'/'paper_v5'/'UnwrappingthePast-PRINT-1.png'
 
-# TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_v4_rec5_multi_paper'
-# TEST_TEMPLATE = CWD/'data'/'resources'/'paper_v4'
+# PAPER_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_v4_rec5_multi_paper'
+# PAPER_TEMPLATE = CWD/'data'/'resources'/'paper_v4'
 
-# TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_v6_rec5_multi_paper'
-TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_v6_rec4'
-TEST_TEMPLATE = CWD/'data'/'resources'/'paper_v6'/'test_paper_template_1.png'
-# TEST_TEMPLATE = CWD/'data'/'resources'/'paper_v6'
+PAPER_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_v6_rec5_multi_paper'
+# PAPER_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_v6_rec4'
+# PAPER_TEMPLATE = CWD/'data'/'resources'/'paper_v6'/'test_paper_template_1.png'
+PAPER_TEMPLATE = CWD/'data'/'resources'/'paper_v6'
 
-# TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_rec1_v1'
-# TEST_TEMPLATE = CWD/'data'/'resources'/'computer'/'computer_screenshot.png'
+# COMPUTER_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_v1_rec1'
+# COMPUTER_TEMPLATE = CWD/'data'/'resources'/'computer'/'computer_screenshot.png'
 
-# TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_rec1_v2'
-# TEST_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_rec1_v3'
-# TEST_TEMPLATE = CWD/'data'/'resources'/'computer'/'computer_screenshot_large_text.png'
+COMPUTER_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_v2_rec1'
+# COMPUTER_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_v3_rec1'
+COMPUTER_TEMPLATE = CWD/'data'/'resources'/'computer'/'computer_screenshot_large_text.png'
 
 # VIDEO_START_INDEX = 5000
 # VIDEO_START_INDEX = 2200
@@ -56,24 +57,19 @@ VIDEO_START_INDEX = 0
 # TRIM_MARGIN_Y_TOP = 100
 # TRIM_MARGIN_Y_BOTTOM = 150
 
-TRIM_MARGIN_X = 1
-TRIM_MARGIN_Y_TOP = 1
-TRIM_MARGIN_Y_BOTTOM = 1
-
 BLACK_MARGIN_SIZE = 50
 
 FIX_RADIUS = 10
 FIX_COLOR = (0, 0, 255)
 FIX_THICKNESS = 3
 
-assert TEST_TOBII_REC_PATH.exists() 
-assert TEST_TEMPLATE.exists() or TEST_TEMPLATE.exists()
+assert PAPER_TOBII_REC_PATH.exists() and PAPER_TEMPLATE.exists()
+assert COMPUTER_TOBII_REC_PATH.exists() and COMPUTER_TEMPLATE.exists()
 
-@pytest.fixture
-def cap():
-    
+def get_cap(tobii_rec_path):
+
     # Load the video and get a single frame
-    video_path = TEST_TOBII_REC_PATH/'scenevideo.mp4'
+    video_path = tobii_rec_path/'scenevideo.mp4'
     assert video_path.exists()
 
     cap = cv2.VideoCapture(str(video_path), 0)
@@ -83,23 +79,35 @@ def cap():
 
     return cap
 
-@pytest.fixture
-def templates():
+def get_gaze(tobii_rec_path):
 
-    if TEST_TEMPLATE.is_dir():
-        templates_filepaths = list(TEST_TEMPLATE.iterdir())
+    # Load other eye-tracking information
+    gaze = ettk.utils.tobii.load_gaze_data(tobii_rec_path)
+    return gaze
+
+def get_templates(templates_path, trim_type:Literal['paper','computer']):
+
+    if templates_path.is_dir():
+        templates_filepaths = list(templates_path.iterdir())
     else:
-        templates_filepaths = [TEST_TEMPLATE]
+        templates_filepaths = [templates_path]
 
     # Load multiple templates inside a directory
     templates = []
     for id, template_filepath in enumerate(templates_filepaths):
         
         template = cv2.imread(str(template_filepath),0)
-    
-        TRIM_MARGIN_X = 40
-        TRIM_MARGIN_Y_TOP = 1
-        TRIM_MARGIN_Y_BOTTOM = 250
+   
+        if trim_type == 'paper':
+            TRIM_MARGIN_X = 40
+            TRIM_MARGIN_Y_TOP = 1
+            TRIM_MARGIN_Y_BOTTOM = 250
+        elif trim_type == 'computer':
+            TRIM_MARGIN_X = 1
+            TRIM_MARGIN_Y_TOP = 1
+            TRIM_MARGIN_Y_BOTTOM = 1
+        else:
+            raise Exception
     
         # Might need to trim the margins for now
         template = template[TRIM_MARGIN_Y_TOP:-TRIM_MARGIN_Y_BOTTOM, TRIM_MARGIN_X:-TRIM_MARGIN_X]
@@ -122,8 +130,7 @@ def templates():
 
     return templates
 
-@pytest.fixture
-def tracker():
+def get_tracker():
 
     FLANN_INDEX_KDTREE = 1 
     index_params = dict(algorithm = FLANN_INDEX_KDTREE,
@@ -133,118 +140,50 @@ def tracker():
     
     # Create tracker
     tracker = ettk.PlanarTracker(
-        # feature_extractor=cv2.xfeatures2d.FREAK_create()
-        feature_extractor=cv2.AKAZE_create(),
         alpha=0.5
-        # feature_extractor=cv2.BRISK_create(),
-        # matcher=cv2.FlannBasedMatcher(index_params, search_params)
     )
     
     return tracker
 
-def test_speed_video(cap):
+def test_template_database():
+
+    # Create the templates
+    paper_templates = get_templates(PAPER_TEMPLATE)
+    template_database = ettk.TemplateDatabase()
+
+    # Add the templates
+    for template in paper_templates:
+        template_database.add(template)
     
-    # Load the video and get a single frame
-    ret, frame = cap.read()
- 
-    # Get the size of the video
-    h, w, _ = frame.shape
+    assert len(template_database) == len(paper_templates)
 
-    cv2.namedWindow('output', cv2.WINDOW_NORMAL)
-
-    # Set the starting point
-    cap.set(cv2.CAP_PROP_POS_FRAMES, VIDEO_START_INDEX)
-
-    # Feature-point detector
-    # feature_detector = cv2.KAZE_create() # Use AKAZE
-    feature_detector=cv2.BRISK_create(1000)
-
-    # Then perform homography
-    while(True):
-
-        ret, frame = cap.read()
-        if ret:
-
-            # Make a copy to draw
-            draw_frame = frame.copy()
-
-            # Keypoint (kp) detection and calculate descriptors (des)
-            # kp, des = feature_detector.detectAndCompute(frame, None)
-            kp, des = feature_detector.compute(frame, None)
-            
-            # Create a visual representation with everything
-            cv2.imshow('output', draw_frame)
-
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-        else:
-            break
-
-        # break
-
-    # Closing the video
-    cv2.destroyAllWindows()
-
-def test_step_video(template, cap, tracker):
-
-    # Load the video and get a single frame
-    ret, frame = cap.read()
- 
-    # Get the size of the video
-    h, w, _ = frame.shape
-
-    cv2.namedWindow('output', cv2.WINDOW_NORMAL)
-
-    # Set the starting point
-    cap.set(cv2.CAP_PROP_POS_FRAMES, VIDEO_START_INDEX)
-
-    # Then perform homography
-    while(True):
-
-        ret, frame = cap.read()
-        if ret:
-            
-            # Input frame
-            # frame = imutils.resize(frame, width=1500)
-
-            # Make a copy to draw
-            draw_frame = frame.copy()
- 
-            # Apply homography
-            result = tracker.step([template], frame)
-            
-            # Draw paper outline
-            draw_frame = ettk.utils.draw_homography_outline(draw_frame, result['corners'], color=(0,255,0))
-
-            # Draw the tracked points
-            draw_frame = ettk.utils.draw_pts(draw_frame, result['tracked_points'])
-            draw_frame = ettk.utils.draw_text(draw_frame, f"{result['fps']:.2f}", color=(0,0,255))
-            
-            # Create a visual representation with everything
-            cv2.imshow('output', draw_frame)
-
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-        else:
-            break
-
-        # break
-
-    # Closing the video
-    cv2.destroyAllWindows()
-
-def test_step_video_with_eye_tracking(templates, cap, tracker):
+@pytest.mark.parametrize(
+    "templates,cap,tracker,gaze",
+    [
+        pytest.param(
+            get_templates(COMPUTER_TEMPLATE, 'computer'),
+            get_cap(COMPUTER_TOBII_REC_PATH),
+            get_tracker(),
+            get_gaze(COMPUTER_TOBII_REC_PATH),
+            id="computer"
+        ),
+        pytest.param(
+            get_templates(PAPER_TEMPLATE, 'paper'),
+            get_cap(PAPER_TOBII_REC_PATH),
+            get_tracker(),
+            get_gaze(PAPER_TOBII_REC_PATH),
+            id="paper"
+        )
+    ]
+)
+def test_step_video_with_eye_tracking(templates, cap, tracker, gaze):
 
     # Register the templates
     templates_ids = tracker.register_templates(templates)
     
     # Load the video and get a single frame
     ret, frame = cap.read()
-    
-    # Load other eye-tracking information
-    gaze_df = ettk.utils.tobii.load_gaze_data(TEST_TOBII_REC_PATH)
-    # gaze_df = pd.DataFrame({'timestamp':[]})
-    
+     
      # Determine fixation timestamp setup information
     fps = cap.get(cv2.CAP_PROP_FPS)
 
@@ -273,7 +212,7 @@ def test_step_video_with_eye_tracking(templates, cap, tracker):
             # Get fixation
             current_time = (VIDEO_START_INDEX+video_index_counter) * (1/fps)
             try:
-                raw_fix = gaze_df[gaze_df['timestamp'] > current_time].reset_index().iloc[0]['gaze2d']
+                raw_fix =gaze[gaze['timestamp'] > current_time].reset_index().iloc[0]['gaze2d']
             except IndexError:
                 raw_fix = [0, 0]
 
@@ -295,7 +234,10 @@ def test_step_video_with_eye_tracking(templates, cap, tracker):
                 template = np.zeros_like(draw_frame)
 
             # Draw template id
-            draw_frame = ettk.utils.draw_text(draw_frame, str(result['template_id']), location=(0,100), color=(0,255,0))
+            if result['template_id'] is not None:
+                draw_frame = ettk.utils.draw_text(draw_frame, str(templates_ids.index(result['template_id'])), location=(0,100), color=(0,255,0))
+            else:
+                draw_frame = ettk.utils.draw_text(draw_frame, str(None), location=(0,100), color=(0,255,0))
             
             # Draw paper outline
             draw_frame = ettk.utils.draw_homography_outline(draw_frame, result['corners'], color=(0,255,0))

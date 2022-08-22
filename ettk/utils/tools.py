@@ -1,6 +1,6 @@
 import cv2
 
-def dhash(img, hash_size=8):
+def dhash(img, hash_size=32):
 
     # resize the input img, adding a single column (width) so we
 	# can compute the horizontal gradient

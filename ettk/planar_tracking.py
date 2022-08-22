@@ -12,6 +12,7 @@ import numpy as np
 
 # Internal Imports
 from . import utils
+from .template_database import TemplateDatabase
 
 import pdb
 
@@ -25,13 +26,12 @@ class PlanarTracker():
     last_seen_counter = 0
     step_id = 0
 
-    template_database = {}
     previous_frame = None
     fps_deque = collections.deque(maxlen=100)
 
     def __init__(
             self, 
-            feature_extractor:Any=cv2.ORB_create(), 
+            feature_extractor:Any=cv2.AKAZE_create(), 
             matcher:Any=cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True),
             alpha:float=0.2,
             homography_every_frame:int=5,
@@ -52,6 +52,14 @@ class PlanarTracker():
         self.use_aruco_markers = use_aruco_markers
         self._aruco_dict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_50)
         self._aruco_params = cv2.aruco.DetectorParameters_create()
+
+        # Initialize template database
+        self.template_database = TemplateDatabase(
+            feature_extractor=feature_extractor,
+            aruco_dict=self._aruco_dict,
+            aruco_params=self._aruco_params,
+            use_aruco_markers=use_aruco_markers
+        )
 
         # Initialize the tracker
         self.initialize_tracker()
@@ -213,33 +221,29 @@ class PlanarTracker():
 
             # Only use the following template finder when having mutliple 
             # templates
-            pdb.set_trace()
             if len(self.template_database) >= 2:
 
                 # Use the aruco markers to find the correct template
-                inter_ids = []
+                max_inter = -1
+                max_template_id = -1
                 for template_id in self.template_database:
-                    inter_ids.append(
-                        len(np.intersect1d(
-                            self.template_database[template_id]['aruco']['ids'].flatten(),
-                            self.frame_data['aruco']['ids'].flatten()
-                            ))
-                    )
+                    
+                    inter = len(np.intersect1d(
+                        self.template_database[template_id]['aruco']['ids'].flatten(),
+                        self.frame_data['aruco']['ids'].flatten()
+                    ))
 
-                pdb.set_trace()
-
-                # Only one template should be found!
-                max_inter, min_inter = max(inter_ids), min(inter_ids)
-                if max_inter == 0: # no found 
+                    if inter > max_inter:
+                        max_template_id = template_id
+                        max_inter = inter
+                
+                if max_inter == -1: # No template found
                     self.last_seen_counter += 1
-                    return
-                elif min_inter != 0: # multiple found
-                    self.last_seen_counter += 1
-                    return
-                else: # Found template!
-                    self.found_template_id = inter_ids.index(max_inter)
+                    self.found_template_id = None
+                else:
                     self.last_seen_counter = 0
-        
+                    self.found_template_id = max_template_id
+
         # If no object is found, look throughout the database
         if isinstance(self.found_template_id, type(None)):
 
@@ -303,39 +307,8 @@ class PlanarTracker():
         generated_hashes = []
         for template in templates:
 
-            # Compute template's id
-            template_hash = utils.dhash(template)
-
-            # Check if the template has been added before
-            if template_hash in self.template_database:
-                continue
-            
-            # Compute additional template information
-            kpts, descs = self.feature_extractor.detectAndCompute(template, None)
-            h, w = template.shape[:2]
-            template_corners = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
-
-            # Store template into database
-            self.template_database[template_hash] = {
-                'template': template,
-                'kpts': kpts,
-                'descs': descs,
-                'template_corners': template_corners, 
-            }
-
-            # Add aruco if requested
-            if self.use_aruco_markers:
-                corners, ids, _ = cv2.aruco.detectMarkers(
-                    template,
-                    self._aruco_dict,
-                    parameters=self._aruco_params
-                ) 
-                self.template_database[template_hash].update({
-                    'aruco': {
-                        'corners': corners,
-                        'ids': ids
-                    }
-                })
+            # Add the template to the database
+            template_hash, success = self.template_database.add(template)
 
             generated_hashes.append(template_hash)
 
