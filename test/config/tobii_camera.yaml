@@ -25,7 +25,7 @@ Camera:
   width: 1920
   height: 1080
 
-  # Camera frames per second 
+  # Camera frames per second
   fps: 24.99
 
   # stereo baseline times fx
@@ -39,18 +39,18 @@ Camera:
 
 ORBExtractor:
   # ORB Extractor: Number of features per image
-  # originally 2000 points 
-  nFeatures: 1000  
+  # originally 2000 points
+  nFeatures: 1000
 
-  # ORB Extractor: Scale factor between levels in the scale pyramid 	
+  # ORB Extractor: Scale factor between levels in the scale pyramid
   scaleFactor: 1.2
 
-  # ORB Extractor: Number of levels in the scale pyramid	
+  # ORB Extractor: Number of levels in the scale pyramid
   nLevels: 8
 
   # ORB Extractor: Fast threshold
   # Image is divided in a grid. At each cell FAST are extracted imposing a minimum response.
   # Firstly we impose iniThFAST. If no corners are detected we impose a lower value minThFAST
-  # You can lower these values if your images have low contrast			
+  # You can lower these values if your images have low contrast
   iniThFAST: 12
   minThFAST: 7

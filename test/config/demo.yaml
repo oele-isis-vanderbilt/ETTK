@@ -35,4 +35,3 @@ MODEL:
 
   THRESHOLDS: [0, 0, 0]
   POS_WEIGHT: 1.5
-
