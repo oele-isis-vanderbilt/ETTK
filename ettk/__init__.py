@@ -30,5 +30,6 @@ LOGGING_CONFIG = {
 logging.config.dictConfig(LOGGING_CONFIG)
 
 from .planar_tracking import PlanarTracker
+from .object_tracking import ObjectTracker
 from .template_database import TemplateDatabase
 from . import utils
