@@ -165,34 +165,45 @@ def test_template_database():
 
 
 @pytest.mark.parametrize(
-    "templates,cap,tracker,gaze",
+    "templates,cap,tracker,gaze,exp_type",
     [
         pytest.param(
             get_templates(COMPUTER_TEMPLATE, "computer"),
             get_cap(COMPUTER_TOBII_REC_PATH),
             get_tracker(use_aruco_markers=False),
             get_gaze(COMPUTER_TOBII_REC_PATH),
+            "computer",
             id="computer",
         ),
-        pytest.param(
-            get_templates(PAPER_TEMPLATE, "paper"),
-            get_cap(PAPER_TOBII_REC_PATH),
-            get_tracker(),
-            get_gaze(PAPER_TOBII_REC_PATH),
-            id="paper",
-        ),
+        # pytest.param(
+        #     get_templates(PAPER_TEMPLATE, "paper"),
+        #     get_cap(PAPER_TOBII_REC_PATH),
+        #     get_tracker(),
+        #     get_gaze(PAPER_TOBII_REC_PATH),
+        #     'paper',
+        #     id="paper",
+        # ),
     ],
 )
-def test_step_video_with_eye_tracking(templates, cap, tracker, gaze):
+def test_step_video_with_eye_tracking(templates, cap, tracker, gaze, exp_type):
 
     # Register the templates
     templates_ids = tracker.register_templates(templates)
 
     # Load the video and get a single frame
     ret, frame = cap.read()
+    h, w = frame.shape[:2]
 
     # Determine fixation timestamp setup information
     fps = cap.get(cv2.CAP_PROP_FPS)
+
+    # # Creating video writer to save generated output
+    # writer = cv2.VideoWriter(
+    #     str(CWD/'output'/f"{exp_type}_video.avi"),
+    #     cv2.VideoWriter_fourcc(*'DIVX'),
+    #     fps=fps,
+    #     frameSize=[w,h]
+    # )
 
     cv2.namedWindow("output", cv2.WINDOW_NORMAL)
 
