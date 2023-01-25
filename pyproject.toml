@@ -1,11 +1,74 @@
+[project]
+name = "ettk"
+version = "0.0.1"
+description = "ETTK: Eye-tracking Toolkit"
+authors = [
+    {name = "Eduardo Davalos", email="eduardo.davalos.anaya@vanderbilt.edu"}
+]
+license = {file = "LICENSE.txt"}
+readme = "README.md"
+requires-python = ">3.6"
+
+keywords = ["eye-tracking", "toolkit", "analysis", "computer vision"]
+
+classifiers = [
+    "Programming Language :: Python :: 3"
+]
+
+dependencies = [
+    'torch',
+    'opencv-contrib-python',
+    'PyYAML',
+    'matplotlib',
+    'pandas',
+    'tqdm',
+    'numpy',
+]
+
+[project.optional-dependencies]
+test = [
+    'pytest',
+    'pytest-repeat',
+    'pytest-lazy-fixture',
+    'pytest-order',
+    'auto-changelog',
+    'pre-commit',
+]
+docs = [
+    'sphinx',
+    'myst-parser',
+    'furo'
+]
+
+[project.urls]
+homepath = "https://github.com/oele-isis-vanderbilt/ETTK"
+documentation = "https://oele-isis-vanderbilt.github.io/ETTK/"
+repository = "https://github.com/oele-isis-vanderbilt/ETTK"
+
 [build-system]
 requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["*"]  # ["*"] by default
+namespaces = true
+
 # Reference:
 # https://stackoverflow.com/questions/4673373/logging-within-pytest-tests
 [tool.pytest.ini_options]
+
+# Logging + CLI
 log_cli = true
 log_cli_level = "DEBUG"
-log_cli_format = "%(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)"
+log_cli_format = "%(asctime)s.%(msecs)03d [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)"
 log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+
+# Timeout
+faulthandler_timeout=120
+
+# Ignore warnings
+filterwarnings = "ignore::DeprecationWarning"
