@@ -24,7 +24,6 @@ dependencies = [
     'tqdm',
     'numpy',
     'chimerapy>=0.0.8',
-    'g3pylib @ git+https://github.com/tobiipro/g3pylib.git',
     'imutils'
 ]
 
@@ -35,7 +34,7 @@ test = [
     'pytest-lazy-fixture',
     'pytest-order',
     'auto-changelog',
-    'pre-commit',
+    'pre-commit'
 ]
 docs = [
     'sphinx',

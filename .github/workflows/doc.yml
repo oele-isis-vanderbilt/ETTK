@@ -24,6 +24,8 @@ jobs:
         sudo apt-get install ffmpeg libsm6 libxext6 -y
         pip install --upgrade pip
         pip install '.[test,docs]'
+        pip install https://github.com/tobiipro/g3pylib.git --ignore-installed av opencv-python
+        pip install av --no-binary av
 
     - name: Install ETTK
       run: |
