@@ -27,8 +27,7 @@ def test_tg3_main():
 
 def test_tg3_stream():
 
-    tg3 = ettk.TG3Node(name="tg3", tg3_name=TG3_NAME)
-    tg3.config("", 0, CWD / "runs", [], [], None, False)
+    tg3 = ettk.TG3Node(name="tg3", tg3_name=TG3_NAME, debug="stream")
 
     tg3.start()
     time.sleep(30)
