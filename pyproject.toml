@@ -7,22 +7,25 @@ authors = [
 ]
 license = {file = "LICENSE.txt"}
 readme = "README.md"
-requires-python = ">3.6"
+requires-python = ">3.10"
 
 keywords = ["eye-tracking", "toolkit", "analysis", "computer vision"]
 
 classifiers = [
-    "Programming Language :: Python :: 3"
+    "Programming Language :: Python :: 3.10"
 ]
 
 dependencies = [
     'torch',
-    'opencv-contrib-python',
+    'opencv-contrib-python==4.6.0.66',
     'PyYAML',
     'matplotlib',
     'pandas',
     'tqdm',
     'numpy',
+    'chimerapy>=0.0.8',
+    'g3pylib @ git+ssh://git@github.com/tobiipro/g3pylib',
+    'imutils'
 ]
 
 [project.optional-dependencies]

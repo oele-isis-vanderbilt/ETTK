@@ -2,6 +2,8 @@
 
 [![PyPI](https://img.shields.io/pypi/v/ettk)](https://pypi.org/project/ettk/) ![](https://img.shields.io/github/license/oele-isis-vanderbilt/ETTK) ![](https://img.shields.io/badge/style-black-black)
 
+[Docs](https://oele-isis-vanderbilt.github.io/ETTK)
+
 Toolkit for analyzing gaze from different eye-tracking sensors (e.g. WebGazer, Tobii Glasses 3, and screen-mounted eye-trackers).
 
 > Note: this is in early development. There is possible breaking changes
