@@ -1,16 +1,11 @@
 # Built-in Imports
 from typing import Optional, Literal
 import asyncio
-import time
-import os
-import pdb
 
 # Third-party Imports
 import chimerapy as cp
-import g3pylib as g3
 from g3pylib import connect_to_glasses
 import cv2
-import imutils
 
 
 class TG3Node(cp.Node):
@@ -23,7 +18,9 @@ class TG3Node(cp.Node):
         super().__init__(name, debug)
         self.tg3_name = tg3_name
 
-    async def async_main(self, max_steps: Optional[int] = None):
+    async def async_main(
+        self, max_steps: Optional[int] = None, debug: Optional[bool] = None
+    ):
 
         # Having step counter
         i = 0
@@ -46,33 +43,28 @@ class TG3Node(cp.Node):
                             while gaze_timestamp is None:
                                 gaze, gaze_timestamp = await gaze_stream.get()
 
-                        # self.logger.info(f"Frame: {frame_timestamp}, Gaze: {gaze_timestamp}")
-                        img = frame.to_ndarray(format="bgr24")
-
-                        if "gaze2d" in gaze:
-                            gaze2d = gaze["gaze2d"]
-                            h, w = img.shape[:2]
-                            fix = (int(gaze2d[0] * w), int(gaze2d[1] * h))
-                            img = cv2.circle(img.copy(), fix, 10, (0, 0, 255), 3)
-
+                        frame = frame.to_ndarray(format="bgr24")
                         i += 1
-                        # if hasattr(self, 'out_queue'):
-                        #     self.out_queue.put({"step_id": i, "data": img})
 
-                        cv2.imshow("Video", imutils.resize(img, width=400))  # type: ignore
-                        cv2.waitKey(1)  # type: ignore
+                        # Visualize data for debugging
+                        cv2.imshow("scene", frame)
+                        cv2.waitKey(1)
 
                         # Save data
-                        # if hasattr(self, 'save_queue'):
-                        #     self.save_video(name="scene", data=img, fps=20)
-                        #     if gaze:
-                        #         # Add timestamp
-                        #         gaze['timestamp'] = gaze_timestamp
-                        #         self.save_tabular(name="gaze", data=gaze)
+                        self.save_video(name="scene", data=frame, fps=20)
+                        if "gaze2d" in gaze:
+                            self.save_tabular(name="gaze", data=gaze)
+
+                        # Create data chunk
+                        data_chunk = cp.DataChunk()
+                        data_chunk.add("scene", frame, "image")
+                        data_chunk.add("gaze", gaze)
+                        if self.publisher:
+                            self.publisher.publish(data_chunk)
 
                         # # Determine if we need to break
                         if max_steps and i > max_steps:
                             break
 
-    def main(self, max_steps: Optional[int] = None):
-        asyncio.run(self.async_main(max_steps))
+    def main(self, max_steps: Optional[int] = None, debug: Optional[bool] = None):
+        asyncio.run(self.async_main(max_steps, debug))

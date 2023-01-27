@@ -19,7 +19,7 @@ def test_tg3_main():
 
     tg3 = ettk.TG3Node(name="tg3", tg3_name=TG3_NAME, debug="step")
 
-    tg3.main(30 * 2)
+    tg3.main(30 * 2, debug=True)
 
     tg3.shutdown()
     cv2.destroyAllWindows()
