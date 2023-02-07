@@ -10,8 +10,8 @@ class TemplateDatabase:
     def __init__(
         self,
         feature_extractor=cv2.AKAZE_create(),
-        aruco_dict=cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_50),
-        aruco_params=cv2.aruco.DetectorParameters_create(),
+        aruco_dict=cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50),
+        aruco_params=cv2.aruco.DetectorParameters(),
         use_aruco_markers=False,
     ):
 
@@ -19,6 +19,7 @@ class TemplateDatabase:
         self.feature_extractor = feature_extractor
         self._aruco_dict = aruco_dict
         self._aruco_params = aruco_params
+        self._aruco_detector = cv2.aruco.ArucoDetector(self._aruco_dict, self._aruco_params)
 
         self.data = {}
 
@@ -61,9 +62,7 @@ class TemplateDatabase:
 
         # Add aruco if requested
         if self.use_aruco_markers:
-            corners, ids, _ = cv2.aruco.detectMarkers(
-                template, self._aruco_dict, parameters=self._aruco_params
-            )
+            corners, ids, _ = self._aruco_detector.detectMarkers(template)
             self.data[template_hash].update({"aruco": {"corners": corners, "ids": ids}})
 
         return template_hash, True
