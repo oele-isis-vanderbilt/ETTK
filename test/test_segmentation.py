@@ -11,6 +11,9 @@ import torch
 import numpy as np
 import cv2
 
+from ettk import SegTracker
+
+
 CWD = pathlib.Path(os.path.abspath(__file__)).parent
 TEST_TOBII_REC_PATH = CWD / "data" / "recordings" / "tobii_paper_v4_rec4"
 
@@ -22,42 +25,43 @@ def cap():
     cap = cv2.VideoCapture(str(video_path), 0)
     return cap
 
-
 @pytest.fixture
-def model():
-    # Load model
-    model = torch.hub.load("ultralytics/yolov5", "yolov5s")
-    logger.info("Finished loading model")
-    return model
+def tracker():
+    return SegTracker(str(CWD/"model"/"yolov8s-seg.pt"))
 
-
-def test_yolo_on_single_frame(cap, model):
+def test_yolo_seg_on_single_frame(cap, tracker):
 
     # Get test image
     ret, frame = cap.read()
 
     # Test the model
-    results = model(frame)
-    output_img = results.render()[0]
-    assert isinstance(output_img, np.ndarray)
+    results = tracker.step(frame)
+    logger.debug(results)
 
+    # cv2.waitKey(0)
+    # assert isinstance(output_img, np.ndarray)
 
-def test_yolo_object_detection_on_video(cap, model):
+def test_yolo_seg_on_sample_frame(tracker):
 
-    logger.info("Starting test")
+    img = cv2.imread(str(CWD/'data'/'samples'/'zidane.jpg'))
+
+    results = tracker.step(img)
+
+    cv2.imshow('output', img)
+    cv2.waitKey(0)
+
+def test_yolo_seg_on_video(cap, model):
 
     while True:
         ret, frame = cap.read()
-        logger.info("read frame")
-        assert ret
 
         if ret:
 
             # Apply the model
             results = model(frame)
-            output = results.render()[0]
-            cv2.imshow("output", output)
-            logger.info("show frame")
+            results.show()
+            # output = results.render()[0]
+            # cv2.imshow("output", output)
 
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break

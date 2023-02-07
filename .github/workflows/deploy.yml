@@ -26,8 +26,8 @@ jobs:
           sudo apt-get install ffmpeg libsm6 libxext6 -y
           pip install --upgrade pip
           pip install '.[test]'
-          pip install https://github.com/tobiipro/g3pylib.git --ignore-installed av opencv-python
           pip install av --no-binary av
+          pip install https://github.com/tobiipro/g3pylib.git --no-deps
           python -m pip install --upgrade build twine
           python -m build
           twine check --strict dist/*

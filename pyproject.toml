@@ -17,14 +17,18 @@ classifiers = [
 
 dependencies = [
     'torch',
-    'opencv-contrib-python==4.6.0.66',
+    'opencv-contrib-python',
     'PyYAML',
     'matplotlib',
     'pandas',
     'tqdm',
     'numpy',
     'chimerapy>=0.0.8',
-    'imutils'
+    'imutils',
+    'websockets ~= 10.3', # g3pylib
+    "zeroconf ~= 0.38.7",
+    "aiortsp @ git+https://github.com/m4reko/aiortsp@master",
+    "aiohttp ~= 3.8.1"
 ]
 
 [project.optional-dependencies]

@@ -6,7 +6,7 @@ yolov*.pt
 
 # Path Specific
 thirdparty/
-data/
+test/data/
 docs/_static/*
 
 # Byte-compiled / optimized / DLL files

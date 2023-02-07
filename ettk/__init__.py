@@ -31,6 +31,7 @@ logging.config.dictConfig(LOGGING_CONFIG)
 
 from .planar_tracking import PlanarTracker
 from .object_tracking import ObjectTracker
+from .seg_tracking import SegTracker
 from .template_database import TemplateDatabase
-from .tg3 import TG3Node
+# from .tg3 import TG3Node
 from . import utils
