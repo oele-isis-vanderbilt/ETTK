@@ -54,8 +54,9 @@ class PlanarTracker:
 
         # Aruco initialization
         self.use_aruco_markers = use_aruco_markers
-        self._aruco_dict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_50)
-        self._aruco_params = cv2.aruco.DetectorParameters_create()
+        self._aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
+        self._aruco_params = cv2.aruco.DetectorParameters()
+        self._aruco_detector = cv2.aruco.ArucoDetector(self._aruco_dict, self._aruco_params)
 
         # Initialize template database
         self.template_database = TemplateDatabase(
@@ -224,9 +225,7 @@ class PlanarTracker:
     def identify_template_with_aruco(self):
 
         # Getting frame's markers
-        corners, ids, _ = cv2.aruco.detectMarkers(
-            self.frame, self._aruco_dict, parameters=self._aruco_params
-        )
+        corners, ids, _ = self._aruco_detector.detectMarkers(self.frame)
 
         # Type safety
         if ids is None:
