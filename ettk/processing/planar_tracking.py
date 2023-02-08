@@ -12,7 +12,7 @@ import cv2
 import numpy as np
 
 # Internal Imports
-from . import utils
+from .. import utils
 from .template_database import TemplateDatabase
 
 import pdb
@@ -37,7 +37,7 @@ class PlanarTracker:
         self,
         feature_extractor: Any = cv2.AKAZE_create(),
         matcher: Any = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True),
-        alpha: float = 0.3,
+        alpha: float = 0.5,
         homography_every_frame: int = 5,
         max_corner_movement: float = 50,
         object_memory_limit: int = 5,
@@ -56,7 +56,9 @@ class PlanarTracker:
         self.use_aruco_markers = use_aruco_markers
         self._aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
         self._aruco_params = cv2.aruco.DetectorParameters()
-        self._aruco_detector = cv2.aruco.ArucoDetector(self._aruco_dict, self._aruco_params)
+        self._aruco_detector = cv2.aruco.ArucoDetector(
+            self._aruco_dict, self._aruco_params
+        )
 
         # Initialize template database
         self.template_database = TemplateDatabase(

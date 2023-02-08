@@ -23,12 +23,12 @@ dependencies = [
     'pandas',
     'tqdm',
     'numpy',
-    'chimerapy>=0.0.8',
     'imutils',
     'websockets ~= 10.3', # g3pylib
     "zeroconf ~= 0.38.7",
     "aiortsp @ git+https://github.com/m4reko/aiortsp@master",
-    "aiohttp ~= 3.8.1"
+    "aiohttp ~= 3.8.1",
+    "ultralytics"
 ]
 
 [project.optional-dependencies]

@@ -16,6 +16,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import imutils
 import pandas as pd
+from pytest_lazyfixture import lazy_fixture
 
 # Internal Imports
 import ettk
@@ -69,10 +70,10 @@ assert PAPER_TOBII_REC_PATH.exists() and PAPER_TEMPLATE.exists()
 assert COMPUTER_TOBII_REC_PATH.exists() and COMPUTER_TEMPLATE.exists()
 
 
-def get_cap(tobii_rec_path):
+def get_rec_data(path):
 
     # Load the video and get a single frame
-    video_path = tobii_rec_path / "scenevideo.mp4"
+    video_path = path / "scenevideo.mp4"
     assert video_path.exists()
 
     cap = cv2.VideoCapture(str(video_path), 0)
@@ -80,14 +81,19 @@ def get_cap(tobii_rec_path):
     assert length > VIDEO_START_INDEX + 1
     cap.set(cv2.CAP_PROP_POS_FRAMES, VIDEO_START_INDEX)
 
-    return cap
-
-
-def get_gaze(tobii_rec_path):
-
     # Load other eye-tracking information
-    gaze = ettk.utils.tobii.load_gaze_data(tobii_rec_path)
-    return gaze
+    gaze = ettk.utils.tobii.load_gaze_data(path)
+    return cap, gaze
+
+
+@pytest.fixture()
+def paper_rec_data():
+    return get_rec_data(PAPER_TOBII_REC_PATH)
+
+
+@pytest.fixture()
+def computer_rec_data():
+    return get_rec_data(COMPUTER_TOBII_REC_PATH)
 
 
 def get_templates(templates_path, trim_type: Literal["paper", "computer"]):
@@ -138,17 +144,14 @@ def get_templates(templates_path, trim_type: Literal["paper", "computer"]):
     return templates
 
 
-def get_tracker(*args, **kwargs):
+@pytest.fixture
+def paper_tracker():
+    return ettk.PlanarTracker()
 
-    FLANN_INDEX_KDTREE = 1
-    index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
 
-    search_params = dict(checks=50)
-
-    # Create tracker
-    tracker = ettk.PlanarTracker(alpha=0.5, *args, **kwargs)
-
-    return tracker
+@pytest.fixture
+def computer_tracker():
+    return ettk.PlanarTracker(use_aruco_markers=False)
 
 
 def test_template_database():
@@ -165,27 +168,28 @@ def test_template_database():
 
 
 @pytest.mark.parametrize(
-    "templates,cap,tracker,gaze,exp_type",
+    "templates,rec_data,tracker,exp_type",
     [
         pytest.param(
             get_templates(COMPUTER_TEMPLATE, "computer"),
-            get_cap(COMPUTER_TOBII_REC_PATH),
-            get_tracker(use_aruco_markers=False),
-            get_gaze(COMPUTER_TOBII_REC_PATH),
+            lazy_fixture("computer_rec_data"),
+            lazy_fixture("computer_tracker"),
             "computer",
             id="computer",
         ),
-        # pytest.param(
-        #     get_templates(PAPER_TEMPLATE, "paper"),
-        #     get_cap(PAPER_TOBII_REC_PATH),
-        #     get_tracker(),
-        #     get_gaze(PAPER_TOBII_REC_PATH),
-        #     'paper',
-        #     id="paper",
-        # ),
+        pytest.param(
+            get_templates(PAPER_TEMPLATE, "paper"),
+            lazy_fixture("paper_rec_data"),
+            lazy_fixture("paper_tracker"),
+            "paper",
+            id="paper",
+        ),
     ],
 )
-def test_step_video_with_eye_tracking(templates, cap, tracker, gaze, exp_type):
+def test_step_video_with_eye_tracking(templates, rec_data, tracker, exp_type):
+
+    # Decompose data
+    cap, gaze = rec_data
 
     # Register the templates
     templates_ids = tracker.register_templates(templates)

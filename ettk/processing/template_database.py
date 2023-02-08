@@ -1,7 +1,7 @@
 import numpy as np
 import cv2
 
-from . import utils
+from .. import utils
 
 import pdb
 
@@ -19,7 +19,9 @@ class TemplateDatabase:
         self.feature_extractor = feature_extractor
         self._aruco_dict = aruco_dict
         self._aruco_params = aruco_params
-        self._aruco_detector = cv2.aruco.ArucoDetector(self._aruco_dict, self._aruco_params)
+        self._aruco_detector = cv2.aruco.ArucoDetector(
+            self._aruco_dict, self._aruco_params
+        )
 
         self.data = {}
 
