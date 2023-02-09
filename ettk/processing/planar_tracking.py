@@ -1,5 +1,5 @@
 # Built-in Imports
-from typing import Any, Optional, Tuple, List
+from typing import Any, Optional, Tuple, List, Union, Dict
 import time
 import collections
 import logging
@@ -23,6 +23,105 @@ LK_PARAMS = dict(
     maxLevel=2,
     criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03),
 )
+
+FIX_RADIUS = 10
+FIX_COLOR = (0, 0, 255)
+FIX_THICKNESS = 3
+
+
+class PlanarResult:
+    def __init__(
+        self,
+        img: np.ndarray,
+        success: bool,
+        template_data: Dict[str, Any],
+        M: np.ndarray,
+        corners: np.ndarray,
+        tracked_points: np.ndarray,
+        fps: Union[int, float],
+    ):
+
+        # Save inputs
+        self.img = img
+        self.success = success
+        self.template_data = template_data
+        self.M = M
+        self.corners = corners
+        self.tracked_points = tracked_points
+        self.fps = fps
+
+    def project_fix(self, fix: Tuple[int, int]):
+
+        fix_pt = np.float32([[fix[0], fix[1]]]).reshape(-1, 1, 2)
+        fix_dst = (
+            cv2.perspectiveTransform(fix_pt, np.linalg.inv(self.M))
+            .flatten()
+            .astype(np.int32)
+        )
+
+        return fix_dst
+
+    def draw_fix(self, fix: Tuple[int, int], img: np.ndarray = None):
+
+        # Draw eye-tracking into the original video frame
+        draw_frame = cv2.circle(img.copy(), fix, FIX_RADIUS, FIX_COLOR, FIX_THICKNESS)
+
+        return draw_frame
+
+    def draw_surface_outline(self, img: np.ndarray = None):
+
+        # Draw paper outline
+        draw_frame = utils.draw_homography_outline(
+            img.copy(), self.corners, color=(0, 255, 0)
+        )
+
+        return draw_frame
+
+    def draw_tracked_points(self, img: np.ndarray = None):
+
+        # Draw the tracked points
+        draw_frame = utils.draw_pts(img, self.tracked_points)
+        draw_frame = utils.draw_text(
+            draw_frame, f"{self.fps:.2f}", location=(0, 50), color=(0, 0, 255)
+        )
+
+        return draw_frame
+
+    def render(self, fix: Tuple[int, int]) -> np.ndarray:
+
+        draw_frame = self.draw_fix(fix, self.img)
+
+        # Select the template that was detected
+        if self.success:
+            template = self.template_data["template"]
+            id = self.template_data["id"]
+            draw_frame = utils.draw_text(
+                draw_frame,
+                str(id),
+                location=(0, 100),
+                color=(0, 255, 0),
+            )
+        else:
+            template = np.zeros_like(draw_frame)
+            draw_frame = utils.draw_text(
+                draw_frame, str(None), location=(0, 100), color=(0, 255, 0)
+            )
+
+        # Draw other detection-related information
+        draw_frame = self.draw_surface_outline(draw_frame)
+        draw_frame = self.draw_tracked_points(draw_frame)
+
+        # Apply homography to fixation and draw it on the page
+        if type(self.M) != type(None):
+            fix_dst = self.project_fix(fix)
+            draw_template = self.draw_fix(fix_dst, template.copy())
+        else:
+            draw_template = template.copy()
+
+        # Combine frames
+        vis_frame = utils.combine_frames(draw_template, draw_frame)
+
+        return vis_frame
 
 
 class PlanarTracker:
@@ -283,7 +382,7 @@ class PlanarTracker:
             current_frame,
             self.dst_tracked_points.astype(np.float32),
             None,
-            **LK_PARAMS
+            **LK_PARAMS,
         )
         p0r, _st, _err = cv2.calcOpticalFlowPyrLK(
             current_frame, self.previous_frame, p1, None, **LK_PARAMS
@@ -319,7 +418,7 @@ class PlanarTracker:
 
     def step(
         self, frame: np.ndarray, templates: Optional[List[np.ndarray]] = None
-    ) -> dict:
+    ) -> PlanarResult:
 
         # Store information to be used in other methods
         self.frame = frame
@@ -363,10 +462,18 @@ class PlanarTracker:
             self.fps_deque, axis=0, weights=[1 for x in range(len(self.fps_deque))]
         )
 
-        return {
-            "template_id": self.found_template_id,
-            "M": self.M,
-            "corners": self.corners,
-            "tracked_points": self.dst_tracked_points,
-            "fps": fps,
-        }
+        # Extract the latest detected template data, if successful
+        if self.success_tracking:
+            template_data = self.template_database[self.found_template_id]
+        else:
+            template_data = []
+
+        return PlanarResult(
+            img=frame,
+            success=self.success_tracking,
+            template_data=template_data,
+            M=self.M,
+            corners=self.corners,
+            tracked_points=self.dst_tracked_points,
+            fps=fps,
+        )

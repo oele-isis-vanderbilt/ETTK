@@ -22,6 +22,7 @@ class TemplateDatabase:
         self._aruco_detector = cv2.aruco.ArucoDetector(
             self._aruco_dict, self._aruco_params
         )
+        self.id_counter = 0
 
         self.data = {}
 
@@ -56,11 +57,13 @@ class TemplateDatabase:
 
         # Store template into database
         self.data[template_hash] = {
+            "id": self.id_counter,
             "template": template,
             "kpts": kpts,
             "descs": descs,
             "template_corners": template_corners,
         }
+        self.id_counter += 1
 
         # Add aruco if requested
         if self.use_aruco_markers:

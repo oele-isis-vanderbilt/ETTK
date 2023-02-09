@@ -1,5 +1,5 @@
 # Built-in Imports
-from typing import Literal
+from typing import Literal, List
 import os
 import sys
 import pathlib
@@ -62,10 +62,6 @@ VIDEO_START_INDEX = 0
 
 BLACK_MARGIN_SIZE = 50
 
-FIX_RADIUS = 10
-FIX_COLOR = (0, 0, 255)
-FIX_THICKNESS = 3
-
 assert PAPER_TOBII_REC_PATH.exists() and PAPER_TEMPLATE.exists()
 assert COMPUTER_TOBII_REC_PATH.exists() and COMPUTER_TEMPLATE.exists()
 
@@ -86,17 +82,9 @@ def get_rec_data(path):
     return cap, gaze
 
 
-@pytest.fixture()
-def paper_rec_data():
-    return get_rec_data(PAPER_TOBII_REC_PATH)
-
-
-@pytest.fixture()
-def computer_rec_data():
-    return get_rec_data(COMPUTER_TOBII_REC_PATH)
-
-
-def get_templates(templates_path, trim_type: Literal["paper", "computer"]):
+def get_templates(
+    templates_path, trim_type: Literal["paper", "computer"]
+) -> List[np.ndarray]:
 
     if templates_path.is_dir():
         templates_filepaths = list(templates_path.iterdir())
@@ -104,7 +92,7 @@ def get_templates(templates_path, trim_type: Literal["paper", "computer"]):
         templates_filepaths = [templates_path]
 
     # Load multiple templates inside a directory
-    templates = []
+    templates: List[np.ndarray] = []
     for id, template_filepath in enumerate(templates_filepaths):
 
         template = cv2.imread(str(template_filepath), 0)
@@ -144,41 +132,42 @@ def get_templates(templates_path, trim_type: Literal["paper", "computer"]):
     return templates
 
 
+@pytest.fixture()
+def paper_rec_data():
+    return get_rec_data(PAPER_TOBII_REC_PATH)
+
+
+@pytest.fixture()
+def computer_rec_data():
+    return get_rec_data(COMPUTER_TOBII_REC_PATH)
+
+
 @pytest.fixture
 def paper_tracker():
-    return ettk.PlanarTracker()
+    tracker = ettk.PlanarTracker()
+    templates = get_templates(PAPER_TEMPLATE, "paper")
+    tracker.register_templates(templates)
+    return tracker
 
 
 @pytest.fixture
 def computer_tracker():
-    return ettk.PlanarTracker(use_aruco_markers=False)
-
-
-def test_template_database():
-
-    # Create the templates
-    paper_templates = get_templates(PAPER_TEMPLATE, "paper")
-    template_database = ettk.TemplateDatabase()
-
-    # Add the templates
-    for template in paper_templates:
-        template_database.add(template)
-
-    assert len(template_database) == len(paper_templates)
+    tracker = ettk.PlanarTracker(use_aruco_markers=False)
+    templates = get_templates(COMPUTER_TEMPLATE, "computer")
+    tracker.register_templates(templates)
+    return tracker
 
 
 @pytest.mark.parametrize(
-    "templates,rec_data,tracker,exp_type",
+    "rec_data,tracker,exp_type",
     [
         pytest.param(
-            get_templates(COMPUTER_TEMPLATE, "computer"),
             lazy_fixture("computer_rec_data"),
             lazy_fixture("computer_tracker"),
             "computer",
             id="computer",
         ),
         pytest.param(
-            get_templates(PAPER_TEMPLATE, "paper"),
             lazy_fixture("paper_rec_data"),
             lazy_fixture("paper_tracker"),
             "paper",
@@ -186,17 +175,10 @@ def test_template_database():
         ),
     ],
 )
-def test_step_video_with_eye_tracking(templates, rec_data, tracker, exp_type):
+def test_step_video_with_eye_tracking(rec_data, tracker, exp_type):
 
     # Decompose data
-    cap, gaze = rec_data
-
-    # Register the templates
-    templates_ids = tracker.register_templates(templates)
-
-    # Load the video and get a single frame
-    ret, frame = cap.read()
-    h, w = frame.shape[:2]
+    cap, gaze_logs = rec_data
 
     # Determine fixation timestamp setup information
     fps = cap.get(cv2.CAP_PROP_FPS)
@@ -225,83 +207,14 @@ def test_step_video_with_eye_tracking(templates, rec_data, tracker, exp_type):
 
         if ret:
 
-            # Input frame
-            # frame = imutils.resize(frame, width=1500)
-
-            # Get the size of the video
-            h, w, _ = frame.shape
-
             # Get fixation
             current_time = (VIDEO_START_INDEX + video_index_counter) * (1 / fps)
-            try:
-                raw_fix = (
-                    gaze[gaze["timestamp"] > current_time]
-                    .reset_index()
-                    .iloc[0]["gaze2d"]
-                )
-            except IndexError:
-                raw_fix = [0, 0]
-
-            if isinstance(raw_fix, str):
-                raw_fix = ast.literal_eval(raw_fix)
-
-            fix = (int(raw_fix[0] * w), int(raw_fix[1] * h))
-
-            # Draw eye-tracking into the original video frame
-            draw_frame = cv2.circle(
-                frame.copy(), fix, FIX_RADIUS, FIX_COLOR, FIX_THICKNESS
-            )
+            fix = ettk.utils.tobii.get_absolute_fix(gaze_logs, current_time)
 
             # Apply homography
             result = tracker.step(frame)
-
-            # Select the template that was detected
-            if not isinstance(result["template_id"], type(None)):
-                template = templates[templates_ids.index(result["template_id"])]
-            else:
-                template = np.zeros_like(draw_frame)
-
-            # Draw template id
-            if result["template_id"] is not None:
-                draw_frame = ettk.utils.draw_text(
-                    draw_frame,
-                    str(templates_ids.index(result["template_id"])),
-                    location=(0, 100),
-                    color=(0, 255, 0),
-                )
-            else:
-                draw_frame = ettk.utils.draw_text(
-                    draw_frame, str(None), location=(0, 100), color=(0, 255, 0)
-                )
-
-            # Draw paper outline
-            draw_frame = ettk.utils.draw_homography_outline(
-                draw_frame, result["corners"], color=(0, 255, 0)
-            )
-
-            # Draw the tracked points
-            draw_frame = ettk.utils.draw_pts(draw_frame, result["tracked_points"])
-            draw_frame = ettk.utils.draw_text(
-                draw_frame, f"{result['fps']:.2f}", location=(0, 50), color=(0, 0, 255)
-            )
-
-            # Apply homography to fixation and draw it on the page
-            if type(result["M"]) != type(None):
-                fix_pt = np.float32([[fix[0], fix[1]]]).reshape(-1, 1, 2)
-                fix_dst = (
-                    cv2.perspectiveTransform(fix_pt, np.linalg.inv(result["M"]))
-                    .flatten()
-                    .astype(np.int32)
-                )
-                draw_template = cv2.circle(
-                    template.copy(), fix_dst, FIX_RADIUS, FIX_COLOR, FIX_THICKNESS
-                )
-            else:
-                draw_template = template.copy()
-
-            # Combine frames
-            vis_frame = ettk.utils.combine_frames(draw_template, draw_frame)
-            cv2.imshow("output", vis_frame)
+            output = result.render(fix)
+            cv2.imshow("output", output)
 
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break

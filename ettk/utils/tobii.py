@@ -1,5 +1,5 @@
 # Built-in Imports
-from typing import Dict
+from typing import Dict, Union, Tuple
 import pathlib
 import gzip
 import ast
@@ -11,6 +11,27 @@ import tqdm
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def get_absolute_fix(
+    gaze_logs: pd.DataFrame, timestamp: Union[int, float], h: int = 1080, w: int = 1920
+) -> Tuple[int, int]:
+
+    try:
+        raw_fix = (
+            gaze_logs[gaze_logs["timestamp"] > timestamp]
+            .reset_index()
+            .iloc[0]["gaze2d"]
+        )
+    except IndexError:
+        raw_fix = [0, 0]
+
+    if isinstance(raw_fix, str):
+        raw_fix = ast.literal_eval(raw_fix)
+
+    fix = (int(raw_fix[0] * w), int(raw_fix[1] * h))
+
+    return fix
 
 
 def load_g3_file(gz_filepath: pathlib.Path) -> Dict:

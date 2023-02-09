@@ -2,7 +2,6 @@ from typing import Tuple, Union
 import copy
 
 import numpy as np
-import torch
 
 # Reference: https://tech.amikelive.com/node-718/what-object-categories-labels-are-in-coco-dataset/
 COCO_ORIGINAL_NAMES = [
@@ -109,6 +108,8 @@ class ObjectTracker:
             self.renamed_classes[class_index] = n_class
 
         # Create the YOLOv5 model
+        import torch
+
         self.model = torch.hub.load("ultralytics/yolov5", "yolov5s")
         self.model.classes = self.interested_classes_idx
 
