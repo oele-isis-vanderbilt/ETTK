@@ -135,10 +135,10 @@ class PlanarTracker:
 
     def __init__(
         self,
-        feature_extractor: Any = cv2.AKAZE_create(),
+        feature_extractor: Any = cv2.ORB_create(),
         matcher: Any = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True),
         alpha: float = 0.5,
-        homography_every_frame: int = 10,
+        homography_every_frame: int = 3,
         max_corner_movement: float = 50,
         object_memory_limit: int = 5,
         use_aruco_markers: bool = True,
@@ -358,9 +358,11 @@ class PlanarTracker:
     def initial_estimation(self):
 
         # Resize image to reduce computational cost
-        small_frame = imutils.resize(self.frame, width=1500)
-        sh, sw = small_frame.shape[:2]
+        # small_frame = imutils.resize(self.frame, width=1500)
+        ratio = 0.75
         h, w = self.frame.shape[:2]
+        sh, sw = int(h / ratio), int(w / ratio)
+        small_frame = imutils.resize(self.frame, width=sw)
         rh, rw = h / sh, w / sw
 
         # First, compute the new frame's kpts and descriptors

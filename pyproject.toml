@@ -22,7 +22,7 @@ dependencies = [
     'pandas',
     'tqdm',
     'numpy',
-    'imutils',
+    'imutils'
 ]
 
 [project.optional-dependencies]
