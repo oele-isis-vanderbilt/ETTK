@@ -7,6 +7,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Third-party
+import imutils
 import numpy as np
 import cv2
 import numpy as np
@@ -38,7 +39,7 @@ class PlanarResult:
         M: np.ndarray,
         corners: np.ndarray,
         tracked_points: np.ndarray,
-        fps: Union[int, float],
+        delay: Union[int, float],
     ):
 
         # Save inputs
@@ -48,7 +49,7 @@ class PlanarResult:
         self.M = M
         self.corners = corners
         self.tracked_points = tracked_points
-        self.fps = fps
+        self.delay = delay
 
     def project_fix(self, fix: Tuple[int, int]):
 
@@ -82,7 +83,7 @@ class PlanarResult:
         # Draw the tracked points
         draw_frame = utils.draw_pts(img, self.tracked_points)
         draw_frame = utils.draw_text(
-            draw_frame, f"{self.fps:.2f}", location=(0, 50), color=(0, 0, 255)
+            draw_frame, f"{(1/self.delay):.2f}", location=(0, 50), color=(0, 0, 255)
         )
 
         return draw_frame
@@ -130,14 +131,14 @@ class PlanarTracker:
     step_id = 0
 
     previous_frame = None
-    fps_deque = collections.deque(maxlen=100)
+    delay_deque = collections.deque(maxlen=100)
 
     def __init__(
         self,
         feature_extractor: Any = cv2.AKAZE_create(),
         matcher: Any = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True),
         alpha: float = 0.5,
-        homography_every_frame: int = 5,
+        homography_every_frame: int = 10,
         max_corner_movement: float = 50,
         object_memory_limit: int = 5,
         use_aruco_markers: bool = True,
@@ -356,10 +357,20 @@ class PlanarTracker:
 
     def initial_estimation(self):
 
+        # Resize image to reduce computational cost
+        small_frame = imutils.resize(self.frame, width=1500)
+        sh, sw = small_frame.shape[:2]
+        h, w = self.frame.shape[:2]
+        rh, rw = h / sh, w / sw
+
         # First, compute the new frame's kpts and descriptors
         # (instead of repeating within the next for loop
-        kpts, descs = self.feature_extractor.detectAndCompute(self.frame, None)
+        kpts, descs = self.feature_extractor.detectAndCompute(small_frame, None)
         self.frame_data = {"kpts": kpts, "descs": descs}
+
+        # Apply the resizing to the keypoints
+        for i in range(len(kpts)):
+            kpts[i].pt = (kpts[i].pt[0] * rh, kpts[i].pt[1] * rw)
 
         # If no object is found, look throughout the database
         if isinstance(self.found_template_id, type(None)):
@@ -426,7 +437,8 @@ class PlanarTracker:
             self.register_templates(templates)
 
         # Start timing
-        tic = time.perf_counter()
+        # tic = time.perf_counter()
+        tic = time.time()
 
         # Tracking if the step has been successful
         self.success_tracking = False
@@ -436,7 +448,7 @@ class PlanarTracker:
             self.initial_estimation()
 
         # Use optical flow tracking to handle movements
-        if self.dst_tracked_points.shape[0] != 0:
+        elif self.dst_tracked_points.shape[0] != 0:
             self.optical_flow_tracking()
 
         # Update the counter if no success tracking
@@ -446,7 +458,6 @@ class PlanarTracker:
             self.last_seen_counter += 1
 
         # If the object is not found in a long time, raise Flag
-        logger.debug(self.last_seen_counter)
         if self.last_seen_counter > self.object_memory_limit:
             self.object_found = False
             self.initialize_tracker()
@@ -456,11 +467,13 @@ class PlanarTracker:
         self.previous_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         # Compute the time it takes to take step
-        toc = time.perf_counter()
-        self.fps_deque.append(1 / (toc - tic))
-        fps = np.average(
-            self.fps_deque, axis=0, weights=[1 for x in range(len(self.fps_deque))]
-        )
+        # toc = time.perf_counter()
+        toc = time.time()
+        self.delay_deque.append(toc - tic)
+        # fps = np.average(
+        #     self.delay_deque, axis=0, weights=[1 for x in range(len(self.delay_deque))]
+        # )
+        delay = sum(self.delay_deque) / len(self.delay_deque)
 
         # Extract the latest detected template data, if successful
         if self.success_tracking:
@@ -475,5 +488,5 @@ class PlanarTracker:
             M=self.M,
             corners=self.corners,
             tracked_points=self.dst_tracked_points,
-            fps=fps,
+            delay=delay,
         )
