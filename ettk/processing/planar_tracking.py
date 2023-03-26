@@ -138,7 +138,7 @@ class PlanarTracker:
         feature_extractor: Any = cv2.ORB_create(),
         matcher: Any = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True),
         alpha: float = 0.5,
-        homography_every_frame: int = 3,
+        homography_every_frame: int = 5,
         max_corner_movement: float = 50,
         object_memory_limit: int = 5,
         use_aruco_markers: bool = True,

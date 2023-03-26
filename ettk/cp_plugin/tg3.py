@@ -16,10 +16,12 @@ class TG3Node(cp.Node):
         self,
         name: str,
         tg3_name: str,
+        url: str,
         debug: Optional[Literal["step", "stream"]] = None,
     ):
         super().__init__(name, debug)
         self.tg3_name = tg3_name
+        self.url = url
 
     async def async_main(
         self, max_steps: Optional[int] = None, debug: Optional[bool] = None
@@ -32,10 +34,14 @@ class TG3Node(cp.Node):
 
         # url = "10.0.0.178"
 
-        async with connect_to_glasses.with_hostname(
-            self.tg3_name, using_zeroconf=True, using_ip=True
+        # async with connect_to_glasses.with_hostname(
+        #     self.tg3_name, using_zeroconf=True, using_ip=True
+        # ) as tg3:
+        async with connect_to_glasses.with_url(
+            f"ws://{self.url}/websocket",
+            f"rtsp://{self.url}:8554/live/all",
+            f"http://{self.url}:80",
         ) as tg3:
-            # async with connect_to_glasses.with_url(f"ws://{url}/websocket", f"rtsp://{url}:8554/live/all", f"http://{url}:80") as tg3:
 
             await tg3.recorder.start()
 
