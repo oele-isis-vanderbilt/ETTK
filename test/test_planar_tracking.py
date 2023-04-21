@@ -38,23 +38,31 @@ CWD = pathlib.Path(os.path.abspath(__file__)).parent
 # PAPER_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_v4_rec5_multi_paper'
 # PAPER_TEMPLATE = CWD/'data'/'resources'/'paper_v4'
 
-PAPER_TOBII_REC_PATH = CWD / "data" / "recordings" / "tobii_paper_v6_rec5_multi_paper"
+# PAPER_TOBII_REC_PATH = CWD / "data" / "recordings" / "tobii_paper_v6_rec5_multi_paper"
 # PAPER_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_v6_rec4'
 # PAPER_TEMPLATE = CWD/'data'/'resources'/'paper_v6'/'test_paper_template_1.png'
-PAPER_TEMPLATE = CWD / "data" / "resources" / "paper_v6"
+# PAPER_TEMPLATE = CWD / "data" / "resources" / "paper_v6"
 
 # COMPUTER_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_v1_rec1'
 # COMPUTER_TEMPLATE = CWD/'data'/'resources'/'computer'/'computer_screenshot.png'
 
-COMPUTER_TOBII_REC_PATH = CWD / "data" / "recordings" / "tobii_computer_v2_rec1"
+# COMPUTER_TOBII_REC_PATH = CWD / "data" / "recordings" / "tobii_computer_v2_rec1"
 # COMPUTER_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_computer_v3_rec1'
-COMPUTER_TEMPLATE = (
-    CWD / "data" / "resources" / "computer" / "computer_screenshot_large_text.png"
+# COMPUTER_TEMPLATE = (
+#     CWD / "data" / "resources" / "computer" / "computer_screenshot_large_text.png"
+# )
+VIDEO_TOBII_REC_PATH = (
+    CWD
+    / "data"
+    / "recordings"
+    / "220506_chimerapy-2023_04_18_09_37_35-7152"
+    / "tg3"
+    / "20230418T142941Z"
 )
 
 # VIDEO_START_INDEX = 1000
 # VIDEO_START_INDEX = 2200
-VIDEO_START_INDEX = 0
+VIDEO_START_INDEX = 50000
 
 # TRIM_MARGIN_X = 80
 # TRIM_MARGIN_Y_TOP = 100
@@ -62,8 +70,7 @@ VIDEO_START_INDEX = 0
 
 BLACK_MARGIN_SIZE = 50
 
-assert PAPER_TOBII_REC_PATH.exists() and PAPER_TEMPLATE.exists()
-assert COMPUTER_TOBII_REC_PATH.exists() and COMPUTER_TEMPLATE.exists()
+assert VIDEO_TOBII_REC_PATH.exists()
 
 
 def get_rec_data(path):
@@ -132,50 +139,18 @@ def get_templates(
     return templates
 
 
-@pytest.fixture()
-def paper_rec_data():
-    return get_rec_data(PAPER_TOBII_REC_PATH)
-
-
-@pytest.fixture()
-def computer_rec_data():
-    return get_rec_data(COMPUTER_TOBII_REC_PATH)
-
-
 @pytest.fixture
-def paper_tracker():
+def tracker():
     tracker = ettk.PlanarTracker()
-    templates = get_templates(PAPER_TEMPLATE, "paper")
-    tracker.register_templates(templates)
     return tracker
 
 
 @pytest.fixture
-def computer_tracker():
-    tracker = ettk.PlanarTracker(use_aruco_markers=False)
-    templates = get_templates(COMPUTER_TEMPLATE, "computer")
-    tracker.register_templates(templates)
-    return tracker
+def rec_data():
+    return get_rec_data(VIDEO_TOBII_REC_PATH)
 
 
-@pytest.mark.parametrize(
-    "rec_data,tracker,exp_type",
-    [
-        pytest.param(
-            lazy_fixture("computer_rec_data"),
-            lazy_fixture("computer_tracker"),
-            "computer",
-            id="computer",
-        ),
-        pytest.param(
-            lazy_fixture("paper_rec_data"),
-            lazy_fixture("paper_tracker"),
-            "paper",
-            id="paper",
-        ),
-    ],
-)
-def test_step_video_with_eye_tracking(rec_data, tracker, exp_type):
+def test_step_video_with_eye_tracking(rec_data, tracker):
 
     # Decompose data
     cap, gaze_logs = rec_data
