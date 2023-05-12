@@ -14,9 +14,7 @@ import cv2
 import pytest
 import numpy as np
 import matplotlib.pyplot as plt
-import imutils
-import pandas as pd
-from pytest_lazyfixture import lazy_fixture
+from scipy.spatial.transform import Rotation as R
 
 # Internal Imports
 import ettk
@@ -72,6 +70,33 @@ BLACK_MARGIN_SIZE = 50
 
 assert VIDEO_TOBII_REC_PATH.exists()
 
+MATRIX_COEFFICIENTS = np.array(
+    [
+        [910.5968017578125, 0, 958.43426513671875],
+        [0, 910.20758056640625, 511.6611328125],
+        [0, 0, 1],
+    ]
+)
+DISTORTION_COEFFICIENTS = np.array(
+    [
+        -0.055919282138347626,
+        0.079781122505664825,
+        -0.048538044095039368,
+        -0.00014426070265471935,
+        0.00044536130735650659,
+    ]
+)
+
+# Monitor RT
+MONITOR_RT = np.array(
+    [
+        [0.96188002, 0.05182879, 0.26851556, 0.23665886],
+        [-0.00466573, 0.98484384, -0.17338061, -0.24785235],
+        [-0.27343201, 0.16551852, 0.94754343, -6.43561886],
+        [0.0, 0.0, 0.0, 1.0],
+    ]
+)
+
 
 def get_rec_data(path):
 
@@ -89,56 +114,6 @@ def get_rec_data(path):
     return cap, gaze
 
 
-def get_templates(
-    templates_path, trim_type: Literal["paper", "computer"]
-) -> List[np.ndarray]:
-
-    if templates_path.is_dir():
-        templates_filepaths = list(templates_path.iterdir())
-    else:
-        templates_filepaths = [templates_path]
-
-    # Load multiple templates inside a directory
-    templates: List[np.ndarray] = []
-    for id, template_filepath in enumerate(templates_filepaths):
-
-        template = cv2.imread(str(template_filepath), 0)
-
-        if trim_type == "paper":
-            TRIM_MARGIN_X = 40
-            TRIM_MARGIN_Y_TOP = 1
-            TRIM_MARGIN_Y_BOTTOM = 250
-        elif trim_type == "computer":
-            TRIM_MARGIN_X = 1
-            TRIM_MARGIN_Y_TOP = 1
-            TRIM_MARGIN_Y_BOTTOM = 1
-        else:
-            raise Exception
-
-        # Might need to trim the margins for now
-        template = template[
-            TRIM_MARGIN_Y_TOP:-TRIM_MARGIN_Y_BOTTOM, TRIM_MARGIN_X:-TRIM_MARGIN_X
-        ]
-
-        # Put the padding
-        template = cv2.copyMakeBorder(
-            template,
-            BLACK_MARGIN_SIZE,
-            BLACK_MARGIN_SIZE,
-            BLACK_MARGIN_SIZE,
-            BLACK_MARGIN_SIZE,
-            cv2.BORDER_CONSTANT,
-            value=[0, 0, 0],
-        )
-
-        templates.append(template)
-        # cv2.imshow(f'template-{id}', template)
-
-    # cv2.waitKey(0)
-
-    return templates
-
-
 @pytest.fixture
 def tracker():
     tracker = ettk.PlanarTracker()
@@ -148,6 +123,127 @@ def tracker():
 @pytest.fixture
 def rec_data():
     return get_rec_data(VIDEO_TOBII_REC_PATH)
+
+
+@pytest.fixture
+def monitor_test_image(rec_data):
+
+    # Decompose data
+    cap, _ = rec_data
+
+    # Set the starting point
+    calibrate_index = 50185
+    cap.set(cv2.CAP_PROP_POS_FRAMES, calibrate_index)
+
+    # Get video
+    _, frame = cap.read()
+
+    return frame
+
+
+def test_3d_project_with_only_aruco(monitor_test_image):
+
+    pts_3d = (
+        0.02
+        * np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]]).astype(np.float32).T
+    )
+
+    aruco_r = np.array([[[-1.8736, -1.7129, 0.6151]]])
+    aruco_t = np.array([[[0.13669, 0.080151, 0.25044]]])[0]
+
+    cv2.drawFrameAxes(
+        monitor_test_image,
+        MATRIX_COEFFICIENTS,
+        DISTORTION_COEFFICIENTS,
+        aruco_r,
+        aruco_t,
+        0.01,
+    )  # Draw Axis
+    output = monitor_test_image.copy()
+
+    cv2.imshow("output", output)
+    key = cv2.waitKey(0)
+
+
+def test_3d_project_aruco_and_monitor(monitor_test_image):
+
+    pts_3d = (
+        0.02
+        * np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]]).astype(np.float32).T
+    )
+
+    aruco_r = np.array([[[-1.8736, -1.7129, 0.6151]]])
+    aruco_t = np.array([[[0.13669, 0.080151, 0.25044]]])[0]
+
+    monitor_r = (
+        R.from_matrix(MONITOR_RT[:3, :3]).as_rotvec().reshape((1, 1, 3))
+    )  # * np.array([[[0, 0, np.pi]]])
+    monitor_t = np.array([[[0.02, -0.02, 0.25044]]])
+    # monitor_t = MONITOR_RT[:3,-1].reshape((1,1,3))
+
+    # Determine delta
+    m_r = R.from_rotvec(monitor_r.squeeze())
+    a_r = R.from_rotvec(aruco_r.squeeze())
+    delta = m_r * a_r.inv()
+    recon_m_r = delta * a_r
+    recon_monitor_r = recon_m_r.as_rotvec().reshape((1, 1, 3))
+    import pdb
+
+    pdb.set_trace()
+
+    cv2.drawFrameAxes(
+        monitor_test_image,
+        MATRIX_COEFFICIENTS,
+        DISTORTION_COEFFICIENTS,
+        aruco_r,
+        aruco_t,
+        0.01,
+    )  # Draw Axis
+    cv2.drawFrameAxes(
+        monitor_test_image,
+        MATRIX_COEFFICIENTS,
+        DISTORTION_COEFFICIENTS,
+        recon_monitor_r,
+        monitor_t,
+        0.01,
+    )  # Draw Axis
+    output = monitor_test_image.copy()
+
+    cv2.imshow("output", output)
+    key = cv2.waitKey(0)
+
+
+def test_monitor_alignment(monitor_test_image, tracker):
+
+    # Apply homography
+    result = tracker.step(monitor_test_image)
+    output = ettk.utils.render((0, 0), result)
+
+    # Put frame ID
+    output = cv2.putText(
+        output,
+        f"frame: {video_index_counter}",
+        (10, 60),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        1,
+        (0, 0, 255),
+        2,
+        cv2.LINE_AA,
+    )
+    cv2.imshow("output", output)
+    key = cv2.waitKey(1)
+
+    for i, id in enumerate(result.aruco.ids[:, 0]):
+        r = R.from_rotvec(result.aruco.rvec[i, 0, 0])
+        t = np.expand_dims(result.aruco.tvec[i, 0, 0], axis=1)
+        rt = np.vstack((np.hstack((r.as_matrix(), t)), np.array([0, 0, 0, 1])))
+        delta = MONITOR_RT @ np.linalg.inv(rt)
+        delta_r = R.from_matrix(delta[:3, :3])
+        diff = R.from_rotvec([0, np.pi, 0])
+        pdb.set_trace()
+
+    # Closing the video
+    cv2.destroyAllWindows()
 
 
 def test_step_video_with_eye_tracking(rec_data, tracker):
@@ -172,7 +268,7 @@ def test_step_video_with_eye_tracking(rec_data, tracker):
     cap.set(cv2.CAP_PROP_POS_FRAMES, VIDEO_START_INDEX)
 
     # Creating counter to track video index
-    video_index_counter = 0
+    video_index_counter = VIDEO_START_INDEX
 
     # Then perform homography
     while True:
@@ -188,11 +284,27 @@ def test_step_video_with_eye_tracking(rec_data, tracker):
 
             # Apply homography
             result = tracker.step(frame)
-            output = result.render(fix)
+            output = ettk.utils.render(fix, result)
+
+            # Put frame ID
+            output = cv2.putText(
+                output,
+                f"frame: {video_index_counter}",
+                (10, 60),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 0, 255),
+                2,
+                cv2.LINE_AA,
+            )
             cv2.imshow("output", output)
 
-            if cv2.waitKey(1) & 0xFF == ord("q"):
+            key = cv2.waitKey(0)
+
+            if key & 0xFF == ord("q"):
                 break
+            elif key & 0xFF == ord("s"):
+                cv2.imwrite(f"output_{video_index_counter}.png", output)
         else:
             break
 

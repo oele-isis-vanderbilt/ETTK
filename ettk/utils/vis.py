@@ -1,9 +1,162 @@
-from typing import List
+from typing import List, Tuple
 import pdb
 
 # Third-party Imports
 import numpy as np
 import cv2
+
+
+# Constants
+FIX_RADIUS = 10
+FIX_COLOR = (0, 0, 255)
+FIX_THICKNESS = 3
+
+MATRIX_COEFFICIENTS = np.array(
+    [
+        [910.5968017578125, 0, 958.43426513671875],
+        [0, 910.20758056640625, 511.6611328125],
+        [0, 0, 1],
+    ]
+)
+DISTORTION_COEFFICIENTS = np.array(
+    [
+        -0.055919282138347626,
+        0.079781122505664825,
+        -0.048538044095039368,
+        -0.00014426070265471935,
+        0.00044536130735650659,
+    ]
+)
+
+
+def render(fix: Tuple[int, int], planar_result: "PlanarResult") -> np.ndarray:
+
+    draw_frame = draw_fix(fix, planar_result.frame)
+
+    a = planar_result.aruco
+    draw_frame = draw_aruco_markers(
+        draw_frame,
+        corners=a.corners,
+        ids=a.ids,
+        rvec=a.rvec,
+        tvec=a.tvec,
+        with_ids=True,
+    )
+
+    m = planar_result.monitor
+    draw_frame = draw_surface_corners(draw_frame, corners=m.corners)
+
+    return draw_frame
+
+
+def project_fix(self, fix: Tuple[int, int]):
+
+    fix_pt = np.float32([[fix[0], fix[1]]]).reshape(-1, 1, 2)
+    fix_dst = (
+        cv2.perspectiveTransform(fix_pt, np.linalg.inv(self.M))
+        .flatten()
+        .astype(np.int32)
+    )
+
+    return fix_dst
+
+
+def draw_fix(fix: Tuple[int, int], img: np.ndarray = None):
+
+    # Draw eye-tracking into the original video frame
+    draw_frame = cv2.circle(img.copy(), fix, FIX_RADIUS, FIX_COLOR, FIX_THICKNESS)
+
+    return draw_frame
+
+
+def draw_aruco_markers(
+    img: np.ndarray,
+    corners: np.ndarray,
+    ids: np.ndarray,
+    rvec: np.ndarray,
+    tvec: np.ndarray,
+    with_ids: bool = True,
+):
+
+    # import pdb; pdb.set_trace()
+    cv2.aruco.drawDetectedMarkers(img, corners)  # Draw A square around the markers
+
+    if np.all(ids is not None):  # If there are markers found by detector
+        for i in range(0, len(ids)):  # Iterate in markers
+
+            cv2.drawFrameAxes(
+                img,
+                MATRIX_COEFFICIENTS,
+                DISTORTION_COEFFICIENTS,
+                rvec[i],
+                tvec[i],
+                0.01,
+            )  # Draw Axis
+
+            # Draw Ids
+            # import pdb; pdb.set_trace()
+            pt = tuple((int(corners[i][0][0][0]), int(corners[i][0][0][1])))
+            cv2.putText(
+                img,
+                f"{ids[i]}",
+                pt,
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 0, 255),
+                2,
+                cv2.LINE_AA,
+            )
+
+    return img
+
+
+def draw_axis(img: np.ndarray, axis: np.ndarray) -> np.ndarray:
+
+    axis_info = {
+        "x": {"index": [0, 1], "color": (0, 0, 255)},
+        "y": {"index": [0, 2], "color": (0, 255, 0)},
+        "z": {"index": [0, 3], "color": (255, 0, 0)},
+    }
+
+    for a, data in axis_info.items():
+        s = axis[data["index"][0]]
+        e = axis[data["index"][1]]
+        s_point = (int(s[0]), int(s[1]))
+        e_point = (int(e[0]), int(e[1]))
+        cv2.line(img, s_point, e_point, data["color"], 2)
+        cv2.putText(
+            img, a, e_point, cv2.FONT_HERSHEY_SIMPLEX, 1, data["color"], 2, cv2.LINE_AA
+        )
+
+    return img
+
+
+def draw_surface_corners(img: np.ndarray, corners: np.ndarray):
+
+    colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 255)]
+
+    # Draw paper outline
+    for corner in corners:
+        for i in [(0, 1), (1, 2), (2, 3), (3, 0)]:
+
+            s = corner[0][i[0]]
+            e = corner[0][i[1]]
+            s_point = (int(s[0]), int(s[1]))
+            e_point = (int(e[0]), int(e[1]))
+            cv2.line(img, s_point, e_point, colors[i[0]], 2)
+
+    return img
+
+
+def draw_tracked_points(img: np.ndarray = None):
+
+    # Draw the tracked points
+    draw_frame = draw_pts(img, tracked_points)
+    draw_frame = draw_text(
+        draw_frame, f"{(1/delay):.2f}", location=(0, 50), color=(0, 0, 255)
+    )
+
+    return draw_frame
 
 
 def ensure_rgb(img):
