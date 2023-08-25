@@ -1,5 +1,5 @@
-from typing import List, Tuple
 import pdb
+from typing import List, Tuple, Optional
 
 # Third-party Imports
 import numpy as np
@@ -78,7 +78,6 @@ def draw_aruco_markers(
     with_ids: bool = True,
 ):
 
-    # import pdb; pdb.set_trace()
     cv2.aruco.drawDetectedMarkers(img, corners)  # Draw A square around the markers
 
     if np.all(ids is not None):  # If there are markers found by detector
@@ -109,24 +108,16 @@ def draw_aruco_markers(
 
     return img
 
+def draw_axis(img: np.ndarray, rvec: np.ndarray, tvec: np.ndarray) -> np.ndarray:
 
-def draw_axis(img: np.ndarray, axis: np.ndarray) -> np.ndarray:
-
-    axis_info = {
-        "x": {"index": [0, 1], "color": (0, 0, 255)},
-        "y": {"index": [0, 2], "color": (0, 255, 0)},
-        "z": {"index": [0, 3], "color": (255, 0, 0)},
-    }
-
-    for a, data in axis_info.items():
-        s = axis[data["index"][0]]
-        e = axis[data["index"][1]]
-        s_point = (int(s[0]), int(s[1]))
-        e_point = (int(e[0]), int(e[1]))
-        cv2.line(img, s_point, e_point, data["color"], 2)
-        cv2.putText(
-            img, a, e_point, cv2.FONT_HERSHEY_SIMPLEX, 1, data["color"], 2, cv2.LINE_AA
-        )
+    cv2.drawFrameAxes(
+        img,
+        MATRIX_COEFFICIENTS,
+        DISTORTION_COEFFICIENTS,
+        rvec,
+        tvec,
+        0.01,
+    )  # Draw Axis
 
     return img
 
@@ -136,14 +127,16 @@ def draw_surface_corners(img: np.ndarray, corners: np.ndarray):
     colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 255)]
 
     # Draw paper outline
-    for corner in corners:
-        for i in [(0, 1), (1, 2), (2, 3), (3, 0)]:
+    for i in [(0, 1), (1, 2), (2, 3), (3, 0)]:
 
-            s = corner[0][i[0]]
-            e = corner[0][i[1]]
-            s_point = (int(s[0]), int(s[1]))
-            e_point = (int(e[0]), int(e[1]))
+        s = corners[i[0]].squeeze()
+        e = corners[i[1]].squeeze()
+        s_point = (int(s[0]), int(s[1]))
+        e_point = (int(e[0]), int(e[1]))
+        try:
             cv2.line(img, s_point, e_point, colors[i[0]], 2)
+        except:
+            continue
 
     return img
 
