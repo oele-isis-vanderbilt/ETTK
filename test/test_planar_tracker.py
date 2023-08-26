@@ -75,7 +75,8 @@ MONITOR_RT = np.array(
 def test_planar_tracking(rec_data):
 
     # Tracker
-    aruco_tracker = ettk.ArucoTracker(aruco_omit=[5, 36, 37, 0, 1, 2, 3, 4, 5, 6])
+    # aruco_tracker = ettk.ArucoTracker(aruco_omit=[5, 36, 37, 0, 1, 2, 3, 4, 5, 6])
+    aruco_tracker = ettk.ArucoTracker(aruco_omit=[5])
     planar_tracker = ettk.PlanarTracker(
         surface_configs=[
             unwrap1_config,
@@ -121,7 +122,7 @@ def test_planar_tracking(rec_data):
         # draw = ettk.utils.vis.draw_lines(draw, surface.lines)
 
         if ret:
-            cv2.imshow('frame', imutils.resize(draw, width=1000))
+            cv2.imshow('frame', imutils.resize(draw, width=1920))
             key = cv2.waitKey(1)
 
             if key & 0xFF == ord("q"):

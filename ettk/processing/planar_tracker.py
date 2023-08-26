@@ -87,6 +87,45 @@ class WeightConfig:
     surface: float = 0.8
 
 
+def rotation_vector_to_quaternion(rot_vec):
+    theta = np.linalg.norm(rot_vec)
+    if theta < 1e-10:
+        return np.array([1, 0, 0, 0])
+    axis = rot_vec / theta
+    q = np.zeros(4)
+    q[0] = np.cos(theta / 2)
+    q[1:] = axis * np.sin(theta / 2)
+    return q
+
+
+def quaternion_to_rotation_vector(q):
+    angle = 2 * np.arccos(q[0])
+    if abs(q[0]) < 1 - 1e-10:
+        axis = q[1:] / np.sin(angle / 2)
+    else:
+        # Angle is close to 0 or 180 degrees, arbitrary axis
+        axis = np.array([1, 0, 0])
+    rot_vec = angle * axis
+    return rot_vec
+
+
+def average_quaternion(quaternions):
+    # Normalize quaternions first
+    quaternions = [q/np.linalg.norm(q) for q in quaternions]
+
+    # Start with the first quaternion
+    avg_q = quaternions[0]
+
+    for q in quaternions[1:]:
+        if np.dot(avg_q, q) < 0:
+            q = -q
+        avg_q += q
+
+    # Normalize to get the final average quaternion
+    avg_q /= np.linalg.norm(avg_q)
+    return avg_q
+
+
 class PlanarTracker:
 
     def __init__(self, 
@@ -152,7 +191,10 @@ class PlanarTracker:
                 tvecs.append(tvec)
 
             # Compute average pose
-            combined_rvec = np.median(np.stack(rvecs), axis=0)
+            # combined_rvec = np.median(np.stack(rvecs), axis=0)
+            quats = [rotation_vector_to_quaternion(r.squeeze()) for r in rvecs]
+            combined_quat = average_quaternion(quats)
+            combined_rvec = np.expand_dims(quaternion_to_rotation_vector(combined_quat), axis=1)
             combined_tvec = np.median(np.stack(tvecs), axis=0)
 
             # Also compute pose if enough points
