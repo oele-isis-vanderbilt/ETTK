@@ -37,12 +37,40 @@ class ArucoResult:
     tvec: np.ndarray = field(default_factory=lambda: np.empty((0,3,1))) # (N,3,1)
 
 
-@dataclass
-class ArucoEntry:
-    id: int
-    rvec: np.ndarray # (3,1)
-    tvec: np.ndarray # (3,1)
-    ttl: int = 30
+# @dataclass
+# class ArucoEntry:
+#     id: int
+#     rvec: np.ndarray # (3,1)
+#     tvec: np.ndarray # (3,1)
+#     ttl: int = 30
+
+
+def align_x_axis_towards_camera(rvec):
+    # Convert rvec to a rotation matrix
+    R, _ = cv2.Rodrigues(rvec)
+    
+    # Extract the x-axis (first column)
+    x_axis = R[:, 0]
+    
+    # Desired direction is the negative Z-axis of the camera
+    desired_direction = np.array([0, 0, -1])
+
+    # Compute the rotation between the current x_axis and desired_direction
+    # This is done using cross and dot products
+    v = np.cross(x_axis, desired_direction)
+    c = np.dot(x_axis, desired_direction)
+    s = np.linalg.norm(v)
+    Vx = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
+
+    align_rotation = np.eye(3) + Vx + (Vx @ Vx) * (1 / (1 + c))
+    
+    # Apply the alignment rotation to the original rotation matrix
+    corrected_R = R @ align_rotation
+    
+    # Convert back to rvec
+    corrected_rvec = cv2.Rodrigues(corrected_R)[0]
+        
+    return corrected_rvec
 
 
 def euler_distance(euler1, euler2, seq='xyz'):
@@ -97,7 +125,7 @@ class ArucoTracker:
         )
 
         # State variables
-        self.aruco_database: Dict[int, ArucoEntry] = {}
+        # self.aruco_database: Dict[int, ArucoEntry] = {}
         self.aruco_filters: Dict[int, RotationVectorKalmanFilter] = {}
 
     def step(self, frame: np.ndarray, repair: bool = True) -> ArucoResult:
@@ -175,28 +203,16 @@ class ArucoTracker:
             # Check if Z axis of marker is pointing away from camera
             id = result.ids[i, 0]
 
-            if id in self.aruco_database:
-                prior = self.aruco_database[id].rvec
-                self.aruco_database[id].ttl -= 1
-                distance = euler_distance(prior.squeeze(), result.rvec[i].squeeze())
-            else:
-                prior = np.zeros((3,1))
-                distance = 0
-
-            # Apply flip correction
-            if (np.abs(distance-45)/45) < 0.2: # or (np.abs(distance-90)/90) < 0.2 or (np.abs(distance-135)/135) < 0.2 or (np.abs(distance-180)/180) < 0.2:
-                result.rvec[i] = prior
-
             # Apply filtering
             if id not in self.aruco_filters:
                 self.aruco_filters[id] = RotationVectorKalmanFilter()
             result.rvec[i] = self.aruco_filters[id].process(result.rvec[i].astype(np.float32))
 
             # Update entry
-            self.aruco_database[result.ids[i, 0]] = ArucoEntry(
-                id=result.ids[i, 0],
-                rvec=result.rvec[i],
-                tvec=result.tvec[i],
-            )
+            # self.aruco_database[result.ids[i, 0]] = ArucoEntry(
+            #     id=result.ids[i, 0],
+            #     rvec=result.rvec[i],
+            #     tvec=result.tvec[i],
+            # )
 
         return result

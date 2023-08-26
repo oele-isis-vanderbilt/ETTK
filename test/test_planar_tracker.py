@@ -8,9 +8,8 @@ import logging
 from typing import Literal, List
 from dataclasses import asdict
 
-logger = logging.getLogger(__name__)
-
 # Third-party Imports
+import imutils
 import cv2
 import pytest
 import numpy as np
@@ -24,6 +23,8 @@ import cv2
 
 from .conftest import rec_data
 from .conftest import VIDEO_TOBII_REC_PATH
+
+logger = logging.getLogger('ettk')
 
 MATRIX_COEFFICIENTS = np.array(
     [
@@ -53,8 +54,11 @@ MONITOR_RT = np.array(
 )
 
 # Page Aruco Size
-PAGE_HEIGHT_SIZE = 29
+PAGE_HEIGHT_SIZE = 27
 PAGE_WIDTH_SIZE = 21.5
+MONITOR_HEIGHT_SIZE = 19
+MONITOR_WIDTH_SIZE = 29
+M_ARUCO_SIZE = 2.5
 W_SCALE = 1/105
 H_SCALE = 1/110
 R_CORR = 0.3
@@ -219,15 +223,143 @@ def test_planar_tracking(rec_data):
         width=PAGE_WIDTH_SIZE,
         scale=(W_SCALE, H_SCALE)
     )
+    suffrage2_config = ettk.SurfaceConfig(
+        id='suffrage2',
+        aruco_config={
+            32: ettk.ArucoConfig(
+                32,
+                np.array([R_CORR, 0, 0]),
+                np.array([x_grid[0], y_grid[0], 0])
+            ),
+            33: ettk.ArucoConfig(
+                33,
+                np.array([R_CORR, 0, 0]),
+                np.array([x_grid[1], y_grid[0], 0])
+            ),
+            34: ettk.ArucoConfig(
+                34,
+                np.array([R_CORR, 0, 0]),
+                np.array([x_grid[0], y_grid[1], 0])
+            ),
+            35: ettk.ArucoConfig(
+                35,
+                np.array([R_CORR, 0, 0]),
+                np.array([x_grid[1], y_grid[1], 0])
+            ),
+            36: ettk.ArucoConfig(
+                36,
+                np.array([R_CORR, 0, 0]),
+                np.array([x_grid[0], y_grid[2], 0])
+            ),
+            37: ettk.ArucoConfig(
+                37,
+                np.array([R_CORR, 0, 0]),
+                np.array([x_grid[1], y_grid[2], 0])
+            ),
+        },
+        height=PAGE_HEIGHT_SIZE,
+        width=PAGE_WIDTH_SIZE,
+        scale=(W_SCALE, H_SCALE)
+    )
+    suffrage3_config = ettk.SurfaceConfig(
+        id='suffrage3',
+        aruco_config={
+            38: ettk.ArucoConfig(
+                38,
+                np.array([R_CORR, 0, 0]),
+                np.array([x_grid[0], y_grid[0], 0])
+            ),
+            39: ettk.ArucoConfig(
+                39,
+                np.array([R_CORR, 0, 0]),
+                np.array([x_grid[1], y_grid[0], 0])
+            ),
+            40: ettk.ArucoConfig(
+                40,
+                np.array([R_CORR, 0, 0]),
+                np.array([x_grid[0], y_grid[1], 0])
+            ),
+            41: ettk.ArucoConfig(
+                41,
+                np.array([R_CORR, 0, 0]),
+                np.array([x_grid[1], y_grid[1], 0])
+            ),
+            42: ettk.ArucoConfig(
+                42,
+                np.array([R_CORR, 0, 0]),
+                np.array([x_grid[0], y_grid[2], 0])
+            ),
+            43: ettk.ArucoConfig(
+                43,
+                np.array([R_CORR, 0, 0]),
+                np.array([x_grid[1], y_grid[2], 0])
+            ),
+        },
+        height=PAGE_HEIGHT_SIZE,
+        width=PAGE_WIDTH_SIZE,
+        scale=(W_SCALE, H_SCALE)
+    )
+
+    monitor_config = ettk.SurfaceConfig(
+        id='monitor',
+        aruco_config={
+            0: ettk.ArucoConfig(
+                0,
+                np.array([0, 0, 0]),
+                np.array([0, 0, 0])
+            ),
+            1: ettk.ArucoConfig(
+                1,
+                np.array([0, 0, 0]),
+                np.array([x_grid[1], y_grid[0], 0])
+            ),
+            2: ettk.ArucoConfig(
+                2,
+                np.array([0, 0, 0]),
+                np.array([x_grid[0], y_grid[1], 0])
+            ),
+            3: ettk.ArucoConfig(
+                3,
+                np.array([0, 0, 0]),
+                np.array([x_grid[1], y_grid[1], 0])
+            ),
+            4: ettk.ArucoConfig(
+                4,
+                np.array([0, 0, 0]),
+                np.array([x_grid[0], y_grid[2], 0])
+            ),
+            5: ettk.ArucoConfig(
+                5,
+                np.array([0, 0, 0]),
+                np.array([x_grid[1], y_grid[2], 0])
+            ),
+            6: ettk.ArucoConfig(
+                6,
+                np.array([0, 0, 0]),
+                np.array([x_grid[1], y_grid[2], 0])
+            ),
+            7: ettk.ArucoConfig(
+                7,
+                np.array([0, -0.03, -0.05]),
+                np.array([2.3, -M_ARUCO_SIZE/2, 0])
+            ),
+        },
+        height=MONITOR_HEIGHT_SIZE,
+        width=MONITOR_WIDTH_SIZE,
+        scale=(W_SCALE, H_SCALE)
+    )
 
     # Tracker
-    aruco_tracker = ettk.ArucoTracker(aruco_omit=[5])
+    aruco_tracker = ettk.ArucoTracker(aruco_omit=[5, 36, 37, 0, 1, 2, 3, 4, 5, 6])
     planar_tracker = ettk.PlanarTracker(
         surface_configs=[
             unwrap1_config,
             unwrap2_config,
             unwrap3_config,
-            suffrage1_config
+            suffrage1_config,
+            suffrage2_config,
+            suffrage3_config,
+            monitor_config
         ], 
         aruco_tracker=aruco_tracker
     )
@@ -239,7 +371,8 @@ def test_planar_tracking(rec_data):
 
         # Processing
         planar_results = planar_tracker.step(frame)
-        draw = ettk.utils.vis.draw_aruco_markers(frame, **asdict(planar_results.aruco), with_ids=True)
+        draw = frame.copy()
+        draw = ettk.utils.vis.draw_aruco_markers(draw, **asdict(planar_results.aruco), with_ids=True)
         for surface in planar_results.surfaces.values():
             draw = ettk.utils.draw_axis(draw, surface.rvec, surface.tvec)
 
@@ -249,8 +382,11 @@ def test_planar_tracking(rec_data):
 
             draw = ettk.utils.vis.draw_surface_corners(draw, surface.corners)
 
+        # Testing
+        # draw = ettk.utils.vis.draw_lines(draw, surface.lines)
+
         if ret:
-            cv2.imshow('frame', frame)
+            cv2.imshow('frame', imutils.resize(draw, width=1000))
             key = cv2.waitKey(1)
 
             if key & 0xFF == ord("q"):

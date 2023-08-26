@@ -69,6 +69,23 @@ def draw_fix(fix: Tuple[int, int], img: np.ndarray = None):
     return draw_frame
 
 
+def draw_lines(img: np.ndarray, lines: List[tuple]) -> np.ndarray:
+
+    if type(lines) != type(None):
+        for line in lines:
+            rho, theta = line[0]
+            a = np.cos(theta)
+            b = np.sin(theta)
+            x0 = a * rho
+            y0 = b * rho
+            x1 = int(x0 + 1000 * (-b))
+            y1 = int(y0 + 1000 * (a))
+            x2 = int(x0 - 1000 * (-b))
+            y2 = int(y0 - 1000 * (a))
+            cv2.line(img, (x1, y1), (x2, y2), (0, 0, 255), 2)
+
+    return img
+
 def draw_aruco_markers(
     img: np.ndarray,
     corners: np.ndarray,

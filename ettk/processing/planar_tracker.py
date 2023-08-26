@@ -14,6 +14,7 @@ from .. import utils
 from .aruco_tracker import ArucoTracker, ArucoResult
 from .template_database import TemplateDatabase
 from .filters import PoseKalmanFilter
+from .hough_refiner import HoughRefiner, HoughResult
 
 import pdb
 logger = logging.getLogger('ettk')
@@ -71,6 +72,7 @@ class SurfaceEntry:
     tvec: np.ndarray # (3,1)
     corners: np.ndarray # (4,2)
     hypotheses: List[Hypothesis] = field(default_factory=list)
+    lines: np.ndarray = field(default_factory=lambda:np.empty((0,1,2))) # (N,1,2)
 
 
 @dataclass
@@ -106,6 +108,7 @@ class PlanarTracker:
 
         # Surface filters
         self.surface_filters: Dict[str, PoseKalmanFilter] = {}
+        self.refiner = HoughRefiner()
 
     def step(self, frame: np.ndarray):
         
@@ -114,6 +117,9 @@ class PlanarTracker:
 
         # Create empty planar container
         planar_results = PlanarResult(aruco=aruco_results, surfaces={})
+
+        # Process the frame once for lines
+        self.refiner.process_frame(frame)
 
         # For each surface, try to compute the surface pose
         for surface_config in self.surface_configs:
@@ -146,11 +152,11 @@ class PlanarTracker:
                 tvecs.append(tvec)
 
             # Compute average pose
-            combined_rvec = np.mean(np.stack(rvecs), axis=0)
-            combined_tvec = np.mean(np.stack(tvecs), axis=0)
+            combined_rvec = np.median(np.stack(rvecs), axis=0)
+            combined_tvec = np.median(np.stack(tvecs), axis=0)
 
             # Also compute pose if enough points
-            if len(hypotheses) > 3:
+            if len(hypotheses) >= 3:
                 
                 obj_points = []
                 img_points = []
@@ -169,7 +175,10 @@ class PlanarTracker:
                 img_points = np.stack(img_points)
                     
                 # Solve for pose using PnP
-                success, rvec, tvec = cv2.solvePnP(obj_points, img_points, MATRIX_COEFFICIENTS, DISTORTION_COEFFICIENTS)
+                try:
+                    success, rvec, tvec = cv2.solvePnP(obj_points, img_points, MATRIX_COEFFICIENTS, DISTORTION_COEFFICIENTS)
+                except:
+                    success = False
 
                 if success:
                     combined_rvec = self.weight_config.aruco*combined_rvec + self.weight_config.surface*rvec
@@ -197,6 +206,9 @@ class PlanarTracker:
                 corners=corners2D,
                 hypotheses=hypotheses
             )
+
+            # Refine
+            # surface_entry = self.refiner.refine(surface_entry)
 
             # Save the surface entry
             planar_results.surfaces[surface_config.id] = surface_entry
