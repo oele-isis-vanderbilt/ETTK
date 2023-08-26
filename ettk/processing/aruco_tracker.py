@@ -118,7 +118,7 @@ class ArucoTracker:
         self.aruco_omit = aruco_omit
 
         # Aruco initialization
-        self._aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
+        self._aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_250)
         self._aruco_params = cv2.aruco.DetectorParameters()
         self._aruco_detector = cv2.aruco.ArucoDetector(
             self._aruco_dict, self._aruco_params
