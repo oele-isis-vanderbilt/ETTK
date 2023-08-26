@@ -53,7 +53,6 @@ MONITOR_RT = np.array(
 )
 
 # Page Aruco Size
-PAGE_ARUCO_SIZE = 0.297
 PAGE_HEIGHT_SIZE = 29
 PAGE_WIDTH_SIZE = 21.5
 W_SCALE = 1/105
@@ -72,37 +71,31 @@ def test_planar_tracking(rec_data):
         aruco_config={
             8: ettk.ArucoConfig(
                 8,
-                PAGE_ARUCO_SIZE,
                 np.array([R_CORR, 0, 0]),
                 np.array([x_grid[0], y_grid[0], 0])
             ),
             9: ettk.ArucoConfig(
                 9,
-                PAGE_ARUCO_SIZE,
                 np.array([R_CORR, 0, 0]),
                 np.array([x_grid[1], y_grid[0], 0])
             ),
             10: ettk.ArucoConfig(
                 10,
-                PAGE_ARUCO_SIZE,
                 np.array([R_CORR, 0, 0]),
                 np.array([x_grid[0], y_grid[1], 0])
             ),
             11: ettk.ArucoConfig(
                 11,
-                PAGE_ARUCO_SIZE,
                 np.array([R_CORR, 0, 0]),
                 np.array([x_grid[1], y_grid[1], 0])
             ),
             12: ettk.ArucoConfig(
                 12,
-                PAGE_ARUCO_SIZE,
                 np.array([R_CORR, 0, 0]),
                 np.array([x_grid[0], y_grid[2], 0])
             ),
             13: ettk.ArucoConfig(
                 13,
-                PAGE_ARUCO_SIZE,
                 np.array([R_CORR, 0, 0]),
                 np.array([x_grid[1], y_grid[2], 0])
             ),
@@ -116,38 +109,32 @@ def test_planar_tracking(rec_data):
         aruco_config={
             14: ettk.ArucoConfig(
                 14,
-                PAGE_ARUCO_SIZE,
-                np.array([R_CORR, 0, 0]),
+                np.array([0, 0, 0]),
                 np.array([x_grid[0], y_grid[0], 0])
             ),
             15: ettk.ArucoConfig(
                 15,
-                PAGE_ARUCO_SIZE,
-                np.array([R_CORR, 0, 0]),
+                np.array([0, 0, 0]),
                 np.array([x_grid[1], y_grid[0], 0])
             ),
             16: ettk.ArucoConfig(
                 16,
-                PAGE_ARUCO_SIZE,
-                np.array([R_CORR, 0, 0]),
+                np.array([0, 0, 0]),
                 np.array([x_grid[0], y_grid[1], 0])
             ),
             17: ettk.ArucoConfig(
                 17,
-                PAGE_ARUCO_SIZE,
-                np.array([R_CORR, 0, 0]),
+                np.array([0, 0, 0]),
                 np.array([x_grid[1], y_grid[1], 0])
             ),
             18: ettk.ArucoConfig(
                 18,
-                PAGE_ARUCO_SIZE,
-                np.array([R_CORR, 0, 0]),
+                np.array([0, 0, 0]),
                 np.array([x_grid[0], y_grid[2], 0])
             ),
             19: ettk.ArucoConfig(
                 19,
-                PAGE_ARUCO_SIZE,
-                np.array([R_CORR, 0, 0]),
+                np.array([0, 0, 0]),
                 np.array([x_grid[1], y_grid[2], 0])
             ),
         },
@@ -160,38 +147,32 @@ def test_planar_tracking(rec_data):
         aruco_config={
             20: ettk.ArucoConfig(
                 20,
-                PAGE_ARUCO_SIZE,
-                np.array([R_CORR, 0, 0]),
+                np.array([0, 0, 0]),
                 np.array([x_grid[0], y_grid[0], 0])
             ),
             21: ettk.ArucoConfig(
                 21,
-                PAGE_ARUCO_SIZE,
-                np.array([R_CORR, 0, 0]),
+                np.array([0, 0, 0]),
                 np.array([x_grid[1], y_grid[0], 0])
             ),
             22: ettk.ArucoConfig(
                 22,
-                PAGE_ARUCO_SIZE,
-                np.array([R_CORR, 0, 0]),
+                np.array([0, 0, 0]),
                 np.array([x_grid[0], y_grid[1], 0])
             ),
             23: ettk.ArucoConfig(
                 23,
-                PAGE_ARUCO_SIZE,
-                np.array([R_CORR, 0, 0]),
+                np.array([0, 0, 0]),
                 np.array([x_grid[1], y_grid[1], 0])
             ),
             24: ettk.ArucoConfig(
                 24,
-                PAGE_ARUCO_SIZE,
-                np.array([R_CORR, 0, 0]),
+                np.array([0, 0, 0]),
                 np.array([x_grid[0], y_grid[2], 0])
             ),
             25: ettk.ArucoConfig(
                 25,
-                PAGE_ARUCO_SIZE,
-                np.array([R_CORR, 0, 0]),
+                np.array([0, 0, 0]),
                 np.array([x_grid[1], y_grid[2], 0])
             ),
         },
@@ -205,37 +186,31 @@ def test_planar_tracking(rec_data):
         aruco_config={
             26: ettk.ArucoConfig(
                 26,
-                PAGE_ARUCO_SIZE,
                 np.array([R_CORR, 0, 0]),
                 np.array([x_grid[0], y_grid[0], 0])
             ),
             27: ettk.ArucoConfig(
                 27,
-                PAGE_ARUCO_SIZE,
                 np.array([R_CORR, 0, 0]),
                 np.array([x_grid[1], y_grid[0], 0])
             ),
             28: ettk.ArucoConfig(
                 28,
-                PAGE_ARUCO_SIZE,
                 np.array([R_CORR, 0, 0]),
                 np.array([x_grid[0], y_grid[1], 0])
             ),
             29: ettk.ArucoConfig(
                 29,
-                PAGE_ARUCO_SIZE,
                 np.array([R_CORR, 0, 0]),
                 np.array([x_grid[1], y_grid[1], 0])
             ),
             30: ettk.ArucoConfig(
                 30,
-                PAGE_ARUCO_SIZE,
                 np.array([R_CORR, 0, 0]),
                 np.array([x_grid[0], y_grid[2], 0])
             ),
             31: ettk.ArucoConfig(
                 31,
-                PAGE_ARUCO_SIZE,
                 np.array([R_CORR, 0, 0]),
                 np.array([x_grid[1], y_grid[2], 0])
             ),
@@ -269,8 +244,8 @@ def test_planar_tracking(rec_data):
             draw = ettk.utils.draw_axis(draw, surface.rvec, surface.tvec)
 
             # Debugging
-            for hypothesis in surface.hypotheses:
-                draw = ettk.utils.draw_axis(draw, hypothesis.rvec, hypothesis.tvec)
+            # for hypothesis in surface.hypotheses:
+            #     draw = ettk.utils.draw_axis(draw, hypothesis.rvec, hypothesis.tvec)
 
             draw = ettk.utils.vis.draw_surface_corners(draw, surface.corners)
 

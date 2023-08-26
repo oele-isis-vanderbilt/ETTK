@@ -93,7 +93,6 @@ def draw_aruco_markers(
             )  # Draw Axis
 
             # Draw Ids
-            # import pdb; pdb.set_trace()
             pt = tuple((int(corners[i][0][0][0]), int(corners[i][0][0][1])))
             cv2.putText(
                 img,

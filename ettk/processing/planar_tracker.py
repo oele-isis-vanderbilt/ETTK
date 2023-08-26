@@ -44,7 +44,6 @@ MS = 0.04
 @dataclass
 class ArucoConfig:
     id: int
-    size: float
     offset_rvec: np.ndarray
     offset_tvec: np.ndarray
 
@@ -80,15 +79,29 @@ class PlanarResult:
     surfaces: Dict[str, SurfaceEntry]
 
 
+@dataclass
+class WeightConfig:
+    aruco: float = 0.2
+    surface: float = 0.8
+
+
 class PlanarTracker:
 
-    def __init__(self, surface_configs: List[SurfaceConfig], aruco_tracker: Optional[ArucoTracker] = None):
+    def __init__(self, 
+            surface_configs: List[SurfaceConfig], 
+            aruco_tracker: Optional[ArucoTracker] = None,
+            weight_config: Optional[WeightConfig] = None,
+        ):
 
         # Process parameters
         if aruco_tracker:
             self.aruco_tracker = aruco_tracker
         else:
             self.aruco_tracker = ArucoTracker()
+        if weight_config:
+            self.weight_config = weight_config
+        else:
+            self.weight_config = WeightConfig()
         self.surface_configs = surface_configs
 
         # Surface filters
@@ -133,13 +146,39 @@ class PlanarTracker:
                 tvecs.append(tvec)
 
             # Compute average pose
-            rvec = np.mean(np.stack(rvecs), axis=0)
-            tvec = np.mean(np.stack(tvecs), axis=0)
+            combined_rvec = np.mean(np.stack(rvecs), axis=0)
+            combined_tvec = np.mean(np.stack(tvecs), axis=0)
+
+            # Also compute pose if enough points
+            if len(hypotheses) > 3:
+                
+                obj_points = []
+                img_points = []
+                for a in surface_arucos:
+                    # Extract
+                    aruco_config = surface_config.aruco_config[a]
+                    obj_points.append(aruco_config.offset_tvec * np.array([*surface_config.scale, 1]))
+
+                    # Compute 2D points
+                    corners = aruco_results.corners[ids.index(a)]
+                    point = np.mean(corners, axis=1)[0]
+                    img_points.append(point)
+
+                # Stack
+                obj_points = np.stack(obj_points)
+                img_points = np.stack(img_points)
+                    
+                # Solve for pose using PnP
+                success, rvec, tvec = cv2.solvePnP(obj_points, img_points, MATRIX_COEFFICIENTS, DISTORTION_COEFFICIENTS)
+
+                if success:
+                    combined_rvec = self.weight_config.aruco*combined_rvec + self.weight_config.surface*rvec
+                    combined_tvec = self.weight_config.aruco*combined_tvec + self.weight_config.surface*tvec
 
             # Apply Kalman filter
             if surface_config.id not in self.surface_filters:
                 self.surface_filters[surface_config.id] = PoseKalmanFilter()
-            rvec, tvec = self.surface_filters[surface_config.id].process(rvec, tvec)
+            rvec, tvec = self.surface_filters[surface_config.id].process(combined_rvec, combined_tvec)
 
             # Compute corners
             corners3D = np.array([
