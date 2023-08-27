@@ -46,16 +46,26 @@ CWD = pathlib.Path(os.path.abspath(__file__)).parent
 # VIDEO_START_INDEX = 0
 
 
+# VIDEO_TOBII_REC_PATH = (
+#     CWD
+#     / "data"
+#     / '220322_chimerapy-2023_04_25_11_49_50-8942'
+#     / 'tg3'
+#     / '20230425T170919Z'
+# )
+# VIDEO_START_INDEX = 5000 # paper
+# VIDEO_START_INDEX = 10000 # monitor
+# VIDEO_START_INDEX = 37800 # MOOCA
+
 VIDEO_TOBII_REC_PATH = (
     CWD
     / "data"
-    / '220322_chimerapy-2023_04_25_11_49_50-8942'
+    / '220965_chimerapy-2023_04_25_12_52_17-1557'
     / 'tg3'
-    / '20230425T170919Z'
+    / '20230425T180505Z'
 )
-# VIDEO_START_INDEX = 5000 # paper
-VIDEO_START_INDEX = 10000 # monitor
-# VIDEO_START_INDEX = 37700 # MOOCA
+# VIDEO_START_INDEX = 0 # monitor
+VIDEO_START_INDEX = 20000 # paper
 
 # TRIM_MARGIN_X = 80
 # TRIM_MARGIN_Y_TOP = 100

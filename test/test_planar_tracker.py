@@ -76,7 +76,7 @@ def test_planar_tracking(rec_data):
 
     # Tracker
     # aruco_tracker = ettk.ArucoTracker(aruco_omit=[5, 36, 37, 0, 1, 2, 3, 4, 5, 6])
-    aruco_tracker = ettk.ArucoTracker(aruco_omit=[5])
+    aruco_tracker = ettk.ArucoTracker(aruco_omit=[5, 2, 1])
     planar_tracker = ettk.PlanarTracker(
         surface_configs=[
             unwrap1_config,

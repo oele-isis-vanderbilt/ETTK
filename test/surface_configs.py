@@ -637,28 +637,28 @@ monitor_config = ettk.SurfaceConfig(
         ),
         1: ettk.ArucoConfig(
             1,
-            np.array([0, 0, 0]),
-            np.array([x_grid[1], y_grid[0], 0])
+            np.array([0.1, 0, -np.pi/2]),
+            np.array([M_ARUCO_SIZE/2+3, MONITOR_HEIGHT_SIZE-1, 0.1])
         ),
         2: ettk.ArucoConfig(
             2,
             np.array([0, 0, 0]),
-            np.array([x_grid[0], y_grid[1], 0])
+            np.array([0, 0, 0])
         ),
         3: ettk.ArucoConfig(
             3,
-            np.array([0, 0, 0]),
-            np.array([x_grid[1], y_grid[1], 0])
+            np.array([0, 0, np.pi/2]),
+            np.array([M_ARUCO_SIZE/2 + MONITOR_WIDTH_SIZE*0.8, MONITOR_HEIGHT_SIZE*0.8, 0.1])
         ),
         4: ettk.ArucoConfig(
             4,
             np.array([0, 0, 0]),
-            np.array([x_grid[0], y_grid[2], 0])
+            np.array([0, 0, 0])
         ),
         5: ettk.ArucoConfig(
             5,
             np.array([0, 0, 0]),
-            np.array([x_grid[1], y_grid[2], 0])
+            np.array([0, 0, 0])
         ),
         6: ettk.ArucoConfig(
             6,

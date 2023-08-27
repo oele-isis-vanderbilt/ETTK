@@ -31,18 +31,19 @@ DISTORTION_COEFFICIENTS = np.array(
 
 @dataclass
 class ArucoResult:
-    corners: np.ndarray = field(default_factory=lambda: np.empty((0,4))) # (M,4)
+    corners: np.ndarray = field(default_factory=lambda: np.empty((0,4))) # (M,4,2)
     ids: np.ndarray = field(default_factory=lambda: np.empty((0,1))) # (N,1)
     rvec: np.ndarray = field(default_factory=lambda: np.empty((0,3,1))) # (N,3,1)
     tvec: np.ndarray = field(default_factory=lambda: np.empty((0,3,1))) # (N,3,1)
 
 
-# @dataclass
-# class ArucoEntry:
-#     id: int
-#     rvec: np.ndarray # (3,1)
-#     tvec: np.ndarray # (3,1)
-#     ttl: int = 30
+@dataclass
+class ArucoEntry:
+    id: int
+    rvec: np.ndarray # (3,1)
+    tvec: np.ndarray # (3,1)
+    corners: np.ndarray # (4,2)
+    counts: int = 0
 
 
 def align_x_axis_towards_camera(rvec):
@@ -104,7 +105,8 @@ class ArucoTracker:
         self, 
         matrix_coefficients: Optional[np.ndarray] = None, 
         distortion_coefficients: Optional[np.ndarray] = None,
-        aruco_omit: Optional[List[int]] = []
+        aruco_omit: Optional[List[int]] = [],
+        counts_required: int = 15,
     ):
 
         # Save parameters
@@ -116,6 +118,7 @@ class ArucoTracker:
             DISTORTION_COEFFICIENTS = distortion_coefficients
 
         self.aruco_omit = aruco_omit
+        self.counts_required = counts_required
 
         # Aruco initialization
         self._aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_250)
@@ -125,7 +128,7 @@ class ArucoTracker:
         )
 
         # State variables
-        # self.aruco_database: Dict[int, ArucoEntry] = {}
+        self.aruco_database: Dict[int, ArucoEntry] = {}
         self.aruco_filters: Dict[int, RotationVectorKalmanFilter] = {}
 
     def step(self, frame: np.ndarray, repair: bool = True) -> ArucoResult:
@@ -198,6 +201,7 @@ class ArucoTracker:
         if len(result.ids) == 0:
             return result
 
+        to_be_removed = []
         for i in range(len(result.ids)):
 
             # Check if Z axis of marker is pointing away from camera
@@ -209,10 +213,32 @@ class ArucoTracker:
             result.rvec[i] = self.aruco_filters[id].process(result.rvec[i].astype(np.float32))
 
             # Update entry
-            # self.aruco_database[result.ids[i, 0]] = ArucoEntry(
-            #     id=result.ids[i, 0],
-            #     rvec=result.rvec[i],
-            #     tvec=result.tvec[i],
-            # )
+            if result.ids[i, 0] not in self.aruco_database:
+                self.aruco_database[result.ids[i, 0]] = ArucoEntry(
+                    id=result.ids[i, 0],
+                    rvec=result.rvec[i],
+                    tvec=result.tvec[i],
+                    corners=result.corners[i]
+                )
+            else:
+                self.aruco_database[result.ids[i, 0]].rvec = result.rvec[i]
+                self.aruco_database[result.ids[i, 0]].tvec = result.tvec[i]
+                self.aruco_database[result.ids[i, 0]].counts += 1
+
+            # If less than the needed counts, remove it from the results
+            if self.aruco_database[result.ids[i, 0]].counts < self.counts_required:
+                to_be_removed.append(i)
+        
+        # Remove entries on the aruco_database
+        ids = list(self.aruco_database.keys())
+        for id in ids:
+            if id not in result.ids and self.aruco_database[id].counts < self.counts_required:
+                del self.aruco_database[id]
+
+        # Remove them
+        result.ids = np.delete(result.ids, to_be_removed, axis=0)
+        result.rvec = np.delete(result.rvec, to_be_removed, axis=0)
+        result.tvec = np.delete(result.tvec, to_be_removed, axis=0)
+        result.corners = np.delete(result.corners, to_be_removed, axis=0)
 
         return result
