@@ -7,6 +7,8 @@ import cv2
 
 # CONSTANTS
 CWD = pathlib.Path(os.path.abspath(__file__)).parent
+PAGES_DIR = CWD / 'config' / 'pages'
+DATA_DIR = CWD / 'data'
 
 # PAPER_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_v4_rec1'
 # PAPER_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_v4_rec2'
@@ -65,7 +67,8 @@ VIDEO_TOBII_REC_PATH = (
     / '20230425T180505Z'
 )
 # VIDEO_START_INDEX = 0 # monitor
-VIDEO_START_INDEX = 20000 # paper
+VIDEO_START_INDEX = 17500 # paper
+# VIDEO_START_INDEX = 32500 # MOOCA
 
 # TRIM_MARGIN_X = 80
 # TRIM_MARGIN_Y_TOP = 100

@@ -31,4 +31,11 @@ logging.config.dictConfig(LOGGING_CONFIG)
 
 # from .tg3 import TG3Node
 from . import utils
-from .processing import ArucoTracker, PlanarTracker, SurfaceConfig, ArucoConfig
+from .processing import (
+    ArucoTracker, 
+    PlanarTracker, 
+    SurfaceConfig, 
+    ArucoConfig,
+    HomographyRefiner,
+    HomographyConfig,
+)

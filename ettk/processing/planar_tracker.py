@@ -56,6 +56,7 @@ class SurfaceConfig:
     height: float
     width: float
     scale: Tuple[float] = (1.0, 1.0)
+    template: Optional[np.ndarray] = None # (H,W,3)
 
 
 @dataclass

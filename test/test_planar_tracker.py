@@ -115,7 +115,7 @@ def test_planar_tracking(rec_data):
             # Debugging
             # for hypothesis in surface.hypotheses:
             #     draw = ettk.utils.draw_axis(draw, hypothesis.rvec, hypothesis.tvec)
-
+        
             draw = ettk.utils.vis.draw_surface_corners(draw, surface.corners)
 
         # Testing
