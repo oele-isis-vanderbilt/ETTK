@@ -15,7 +15,7 @@ from .. import utils
 from .aruco_tracker import ArucoTracker, ArucoResult
 from .template_database import TemplateDatabase
 from .filters import PoseKalmanFilter
-from .homography_refiner import HomographyRefiner
+from .homography_refiner import HomographyRefiner, HomographyResult
 
 import pdb
 logger = logging.getLogger('ettk')
@@ -75,6 +75,7 @@ class SurfaceEntry:
     corners: np.ndarray # (4,2)
     hypotheses: List[Hypothesis] = field(default_factory=list)
     lines: np.ndarray = field(default_factory=lambda:np.empty((0,1,2))) # (N,1,2)
+    homography: Optional[HomographyResult] = None
 
 
 @dataclass
@@ -128,6 +129,15 @@ def average_quaternion(quaternions):
     return avg_q
 
 
+def extract_RT_from_homography(K, H) -> Tuple[np.ndarray, np.ndarray]:
+    # Decompose the homography
+    retval, rotations, translations, normals = cv2.decomposeHomographyMat(H, K)
+    # Assume the first solution is the best (this should be improved in practice)
+    rvec, _ = cv2.Rodrigues(rotations[0])
+    tvec = translations[0]
+    return rvec, tvec
+
+
 class PlanarTracker:
 
     def __init__(self, 
@@ -153,6 +163,19 @@ class PlanarTracker:
         # Homography refiner
         templates = {s.id: s.template for s in surface_configs if s.template is not None}
         self.refiner = HomographyRefiner(templates)
+
+    def weighted_fusion(self, original_rvec, original_tvec, homography_rvec, homography_tvec, weight=0.5) -> Tuple[np.ndarray, np.ndarray]:
+
+        # Convert rvec to quaternion for fusion
+        original_quat = cv2.Rodrigues(original_rvec)[0]
+        homography_quat = cv2.Rodrigues(homography_rvec)[0]
+        
+        fused_quat = weight * original_quat + (1 - weight) * homography_quat
+        fused_rvec = cv2.Rodrigues(fused_quat)[0]
+        
+        fused_tvec = weight * original_tvec + (1 - weight) * homography_tvec
+        
+        return fused_rvec, fused_tvec
 
     def step(self, frame: np.ndarray):
         
@@ -257,6 +280,20 @@ class PlanarTracker:
             # Perform homography
             if surface_config.template is not None:
                 homography_results = self.refiner.find_homography(surface_config.id)
+                if homography_results is not None:
+                    surface_entry.homography = homography_results
+                    # import pdb; pdb.set_trace()
+                    # rvec, tvec = extract_RT_from_homography(
+                    #     MATRIX_COEFFICIENTS, 
+                    #     planar_results.homography.H
+                    # )
+                    # surface_entry.rvec, surface_entry.tvec = self.weighted_fusion(
+                    #     rvec, 
+                    #     tvec, 
+                    #     surface_entry.rvec, 
+                    #     surface_entry.tvec, 
+                    #     weight=0.5
+                    # )
 
             # Save the surface entry
             planar_results.surfaces[surface_config.id] = surface_entry

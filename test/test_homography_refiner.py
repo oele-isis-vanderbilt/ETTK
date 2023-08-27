@@ -61,7 +61,6 @@ def test_homography():
 def test_homography_refiner(rec_data):
 
     templates = {
-        # 'mooca1': imutils.resize(cv2.imread(str(PAGES_DIR / 'mooca' / 'MOOCA-01.png')), width=500),
         'suffrage1': imutils.resize(cv2.imread(str(PAGES_DIR / 'suffrage' / 'suffrage-1.png')), width=500),
     }
 

@@ -130,14 +130,16 @@ class HomographyRefiner:
         # Define the four corners of the template image (assuming img1 is the template)
         h, w = template.template.shape[:2]
         template_aspect_ratio = w / h
-        corners_template = np.float32([[0, 0], [0, h-1], [w-1, h-1], [w-1, 0]]).reshape(-1, 1, 2)
+        # corners_template = np.float32([[0, 0], [0, h-1], [w-1, h-1], [w-1, 0]]).reshape(-1, 1, 2)
+        corners_template = np.float32([[0, 0], [w-1, 0], [w-1, h-1], [0, h-1]]).reshape(-1, 1, 2)
         warped = cv2.perspectiveTransform(corners_template, M)
 
         # Compute aspect ratio
         width = np.linalg.norm(warped[0] - warped[1])
         height = np.linalg.norm(warped[1] - warped[2])
         aspect_ratio = width / height
-        if (aspect_ratio > 2) or (aspect_ratio < 0.75):
+        logger.debug(f"Aspect ratio: {aspect_ratio}")
+        if (aspect_ratio > 1) or (aspect_ratio < 0.15):
             return None
 
         # Compute angle between edges

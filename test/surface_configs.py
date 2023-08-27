@@ -17,9 +17,31 @@ H_SCALE = 1/110
 # R_CORR = 0.3
 R_CORR = 0
 
+TRIM_RIGHT = 0.1
+TRIM_BOTTOM = 0.175
+
 # Grid
 x_grid = [1.8, 20.0]
 y_grid = [4.6, 13.5, 24.0]
+
+
+def trim_left(image, fraction):
+    w = image.shape[1]
+    return image[:, int(w*fraction):]
+
+
+def trim_right(image, fraction):
+    w = image.shape[1]
+    return image[:, :int(w*(1-fraction))]
+
+
+def trim_top(image, fraction):
+    h = image.shape[0]
+    return image[int(h*fraction):, :]
+
+def trim_bottom(image, fraction):
+    h = image.shape[0]
+    return image[:int(h*(1-fraction)), :]
 
 # Create configuration for UnwrappingOfThePast
 unwrap1_config = ettk.SurfaceConfig(
@@ -59,8 +81,15 @@ unwrap1_config = ettk.SurfaceConfig(
     height=PAGE_HEIGHT_SIZE,
     width=PAGE_WIDTH_SIZE,
     scale=(W_SCALE, H_SCALE),
-    template=imutils.resize(cv2.imread(str(PAGES_DIR / 'unwrap' / 'unwrapping-1.png')), width=500)
+    template=trim_bottom(
+        trim_right(
+            imutils.resize(cv2.imread(str(PAGES_DIR / 'unwrap' / 'unwrapping-1.png')), width=500),
+            TRIM_RIGHT
+        ),
+        TRIM_BOTTOM
+    )
 )
+
 unwrap2_config = ettk.SurfaceConfig(
     id='unwrap2',
     aruco_config={
@@ -98,7 +127,13 @@ unwrap2_config = ettk.SurfaceConfig(
     height=PAGE_HEIGHT_SIZE,
     width=PAGE_WIDTH_SIZE,
     scale=(W_SCALE, H_SCALE),
-    template=imutils.resize(cv2.imread(str(PAGES_DIR / 'unwrap' / 'unwrapping-2.png')), width=500)
+    template=trim_bottom(
+        trim_right(
+            imutils.resize(cv2.imread(str(PAGES_DIR / 'unwrap' / 'unwrapping-2.png')), width=500),
+            TRIM_RIGHT
+        ),
+        TRIM_BOTTOM
+    )
 )
 
 unwrap3_config = ettk.SurfaceConfig(
@@ -138,7 +173,13 @@ unwrap3_config = ettk.SurfaceConfig(
     height=PAGE_HEIGHT_SIZE,
     width=PAGE_WIDTH_SIZE,
     scale=(W_SCALE, H_SCALE),
-    template=imutils.resize(cv2.imread(str(PAGES_DIR / 'unwrap' / 'unwrapping-3.png')), width=500)
+    template=trim_bottom(
+        trim_right(
+            imutils.resize(cv2.imread(str(PAGES_DIR / 'unwrap' / 'unwrapping-3.png')), width=500),
+            TRIM_RIGHT
+        ),
+        TRIM_BOTTOM
+    )
 )
 
 suffrage1_config = ettk.SurfaceConfig(
@@ -178,7 +219,13 @@ suffrage1_config = ettk.SurfaceConfig(
     height=PAGE_HEIGHT_SIZE,
     width=PAGE_WIDTH_SIZE,
     scale=(W_SCALE, H_SCALE),
-    template=imutils.resize(cv2.imread(str(PAGES_DIR / 'suffrage' / 'suffrage-1.png')), width=500)
+    template=trim_bottom(
+        trim_right(
+            imutils.resize(cv2.imread(str(PAGES_DIR / 'suffrage' / 'suffrage-1.png')), width=500),
+            TRIM_RIGHT
+        ),
+        TRIM_BOTTOM
+    )
 )
 
 suffrage2_config = ettk.SurfaceConfig(
@@ -218,8 +265,15 @@ suffrage2_config = ettk.SurfaceConfig(
     height=PAGE_HEIGHT_SIZE,
     width=PAGE_WIDTH_SIZE,
     scale=(W_SCALE, H_SCALE),
-    template=imutils.resize(cv2.imread(str(PAGES_DIR / 'suffrage' / 'suffrage-2.png')), width=500)
+    template=trim_bottom(
+        trim_right(
+            imutils.resize(cv2.imread(str(PAGES_DIR / 'suffrage' / 'suffrage-2.png')), width=500),
+            TRIM_RIGHT
+        ),
+        TRIM_BOTTOM
+    )
 )
+
 suffrage3_config = ettk.SurfaceConfig(
     id='suffrage3',
     aruco_config={
@@ -257,8 +311,15 @@ suffrage3_config = ettk.SurfaceConfig(
     height=PAGE_HEIGHT_SIZE,
     width=PAGE_WIDTH_SIZE,
     scale=(W_SCALE, H_SCALE),
-    template=imutils.resize(cv2.imread(str(PAGES_DIR / 'suffrage' / 'suffrage-3.png')), width=500)
+    template=trim_bottom(
+        trim_right(
+            imutils.resize(cv2.imread(str(PAGES_DIR / 'suffrage' / 'suffrage-3.png')), width=500),
+            TRIM_RIGHT
+        ),
+        TRIM_BOTTOM
+    )
 )
+
 mooca1_config = ettk.SurfaceConfig(
     id='mooca1',
     aruco_config={
@@ -298,6 +359,7 @@ mooca1_config = ettk.SurfaceConfig(
     scale=(W_SCALE, H_SCALE),
     template=imutils.resize(cv2.imread(str(PAGES_DIR / 'mooca' / 'MOOCA-01.png')), width=500)
 )
+
 mooca2_config = ettk.SurfaceConfig(
     id='mooca2',
     aruco_config={
@@ -337,6 +399,7 @@ mooca2_config = ettk.SurfaceConfig(
     scale=(W_SCALE, H_SCALE),
     template=imutils.resize(cv2.imread(str(PAGES_DIR / 'mooca' / 'MOOCA-02.png')), width=500)
 )
+
 mooca3_config = ettk.SurfaceConfig(
     id='mooca3',
     aruco_config={
@@ -376,6 +439,7 @@ mooca3_config = ettk.SurfaceConfig(
     scale=(W_SCALE, H_SCALE),
     template=imutils.resize(cv2.imread(str(PAGES_DIR / 'mooca' / 'MOOCA-03.png')), width=500)
 )
+
 mooca4_config = ettk.SurfaceConfig(
     id='mooca4',
     aruco_config={
@@ -415,6 +479,7 @@ mooca4_config = ettk.SurfaceConfig(
     scale=(W_SCALE, H_SCALE),
     template=imutils.resize(cv2.imread(str(PAGES_DIR / 'mooca' / 'MOOCA-04.png')), width=500)
 )
+
 mooca5_config = ettk.SurfaceConfig(
     id='mooca5',
     aruco_config={
@@ -454,6 +519,7 @@ mooca5_config = ettk.SurfaceConfig(
     scale=(W_SCALE, H_SCALE),
     template=imutils.resize(cv2.imread(str(PAGES_DIR / 'mooca' / 'MOOCA-05.png')), width=500)
 )
+
 mooca6_config = ettk.SurfaceConfig(
     id='mooca6',
     aruco_config={
@@ -493,6 +559,7 @@ mooca6_config = ettk.SurfaceConfig(
     scale=(W_SCALE, H_SCALE),
     template=imutils.resize(cv2.imread(str(PAGES_DIR / 'mooca' / 'MOOCA-06.png')), width=500)
 )
+
 mooca7_config = ettk.SurfaceConfig(
     id='mooca7',
     aruco_config={
@@ -532,6 +599,7 @@ mooca7_config = ettk.SurfaceConfig(
     scale=(W_SCALE, H_SCALE),
     template=imutils.resize(cv2.imread(str(PAGES_DIR / 'mooca' / 'MOOCA-07.png')), width=500)
 )
+
 mooca8_config = ettk.SurfaceConfig(
     id='mooca8',
     aruco_config={
@@ -571,6 +639,7 @@ mooca8_config = ettk.SurfaceConfig(
     scale=(W_SCALE, H_SCALE),
     template=imutils.resize(cv2.imread(str(PAGES_DIR / 'mooca' / 'MOOCA-08.png')), width=500)
 )
+
 mooca9_config = ettk.SurfaceConfig(
     id='mooca9',
     aruco_config={
@@ -610,6 +679,7 @@ mooca9_config = ettk.SurfaceConfig(
     scale=(W_SCALE, H_SCALE),
     template=imutils.resize(cv2.imread(str(PAGES_DIR / 'mooca' / 'MOOCA-09.png')), width=500)
 )
+
 mooca10_config = ettk.SurfaceConfig(
     id='mooca10',
     aruco_config={
