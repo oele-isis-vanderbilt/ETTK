@@ -29,15 +29,10 @@ class HomographyConfig:
 
 
 @dataclass
-class HomographyEntry:
+class HomographyResult:
     name: str
     H: np.ndarray
     corners: np.ndarray # (4,2)
-
-
-@dataclass
-class HomographyResult:
-    entries: Dict[str, HomographyEntry] = field(default_factory=dict)
 
 
 def angle_between(v1, v2):
@@ -74,6 +69,11 @@ class HomographyRefiner:
                 des=des
             )
 
+        # Containers
+        self.gray: Optional[np.ndarray] = None
+        self.kp: Optional[np.ndarray] = None
+        self.des: Optional[np.ndarray] = None
+
     def warp_points(self, points: np.ndarray, H: np.ndarray) -> np.ndarray:
         """Warp a list of points using a homography matrix H."""
         # Convert points to homogeneous coordinates
@@ -89,79 +89,78 @@ class HomographyRefiner:
         
         return np.expand_dims(warped, axis=1)
 
-    def step(self, frame: np.ndarray, template_names: Optional[List[str]] = None) -> Optional[HomographyResult]:
+    def step(self, frame: np.ndarray, template_name: str) -> Optional[HomographyResult]:
+        self.process_frame(frame)
+        return self.find_homography(template_name)
 
-        if not template_names:
-            return None
-
-        # Create container
-        H = HomographyResult()
+    def process_frame(self, frame: np.ndarray):
         
         # Convert images to grayscale
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        self.gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         # Find the keypoints and descriptors with ORB
-        kp, des = self.orb.detectAndCompute(gray, None)
+        self.kp, self.des = self.orb.detectAndCompute(self.gray, None)
 
-        for template_name in template_names:
+    def find_homography(self, template_name: str) -> Optional[HomographyResult]:
+        assert self.kp is not None and self.des is not None, "Process the frame before running ``find_homography``"
 
-            # Get the template
-            template = self.templates[template_name]
+        # Get the template
+        template = self.templates[template_name]
 
-            # Use BFMatcher to find the best matches
-            matches = self.bf.match(template.des, des)
+        # Use BFMatcher to find the best matches
+        matches = self.bf.match(template.des, self.des)
 
-            # Sort matches by distance
-            matches = sorted(matches, key=lambda x: x.distance)
-            if len(matches) < self.config.min_matches:
-                continue
+        # Sort matches by distance
+        matches = sorted(matches, key=lambda x: x.distance)
+        if len(matches) < self.config.min_matches:
+            return None
 
-            # Extract the coordinates of the matched keypoints
-            template_pts = np.float32([template.kp[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
-            pts = np.float32([kp[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
+        # Extract the coordinates of the matched keypoints
+        template_pts = np.float32([template.kp[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
+        pts = np.float32([self.kp[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
 
-            # Compute the homography matrix
-            M, mask = cv2.findHomography(template_pts, pts, cv2.RANSAC, self.config.ransac_threshold)
+        # Compute the homography matrix
+        M, mask = cv2.findHomography(template_pts, pts, cv2.RANSAC, self.config.ransac_threshold)
 
-            num_inliers = np.sum(mask)
-            if num_inliers < self.config.min_inliers:
-                continue
+        num_inliers = np.sum(mask)
+        if num_inliers < self.config.min_inliers:
+            return None
 
-            # Compute the warped points
-            # Define the four corners of the template image (assuming img1 is the template)
-            h, w = template.template.shape[:2]
-            template_aspect_ratio = w / h
-            corners_template = np.float32([[0, 0], [0, h-1], [w-1, h-1], [w-1, 0]]).reshape(-1, 1, 2)
-            warped = cv2.perspectiveTransform(corners_template, M)
+        # Compute the warped points
+        # Define the four corners of the template image (assuming img1 is the template)
+        h, w = template.template.shape[:2]
+        template_aspect_ratio = w / h
+        corners_template = np.float32([[0, 0], [0, h-1], [w-1, h-1], [w-1, 0]]).reshape(-1, 1, 2)
+        warped = cv2.perspectiveTransform(corners_template, M)
 
-            # Compute aspect ratio
-            width = np.linalg.norm(warped[0] - warped[1])
-            height = np.linalg.norm(warped[1] - warped[2])
-            aspect_ratio = width / height
-            if (aspect_ratio > 2) or (aspect_ratio < 0.75):
-                continue
+        # Compute aspect ratio
+        width = np.linalg.norm(warped[0] - warped[1])
+        height = np.linalg.norm(warped[1] - warped[2])
+        aspect_ratio = width / height
+        if (aspect_ratio > 2) or (aspect_ratio < 0.75):
+            return None
 
-            # Compute angle between edges
-            fail = False
-            for i in range(4):
-                edge1 = warped[i] - warped[(i+1)%4]
-                edge2 = warped[(i+1)%4] - warped[(i+2)%4]
-                angle = angle_between(edge1[0], edge2[0])
-                if abs(90 - angle) > self.config.angle_threshold:
-                    fail = True
-                    break
-    
-            if fail:
-                continue
+        # Compute angle between edges
+        fail = False
+        for i in range(4):
+            edge1 = warped[i] - warped[(i+1)%4]
+            edge2 = warped[(i+1)%4] - warped[(i+2)%4]
+            angle = angle_between(edge1[0], edge2[0])
+            if abs(90 - angle) > self.config.angle_threshold:
+                fail = True
+                break
 
-            # Apply filtering
-            M = self.filter.process(M)
+        if fail:
+            return None
 
-            # Create entry
-            H.entries[template_name] = HomographyEntry(
-                name=template_name,
-                H=M,
-                corners=warped
-            )
+        # Apply filtering
+        M = self.filter.process(M)
+
+        # Create entry
+        H = HomographyResult(
+            name=template_name,
+            H=M,
+            corners=warped
+        )
 
         return H

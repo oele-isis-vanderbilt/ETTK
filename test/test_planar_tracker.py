@@ -3,6 +3,7 @@ import os
 import sys
 import pathlib
 import ast
+import time
 import pdb
 import logging
 from typing import Literal, List
@@ -105,6 +106,9 @@ def test_planar_tracking(rec_data):
     while True: 
         ret, frame = cap.read()
 
+        # Checking FPS
+        tic = time.perf_counter()
+
         # Processing
         planar_results = planar_tracker.step(frame)
         draw = frame.copy()
@@ -117,6 +121,13 @@ def test_planar_tracking(rec_data):
             #     draw = ettk.utils.draw_axis(draw, hypothesis.rvec, hypothesis.tvec)
         
             draw = ettk.utils.vis.draw_surface_corners(draw, surface.corners)
+
+        # Checking FPS
+        toc = time.perf_counter()
+        fps = 1 / (toc - tic)
+
+        # Draw FPS
+        draw = cv2.putText(draw, f"FPS: {fps:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
 
         # Testing
         # draw = ettk.utils.vis.draw_lines(draw, surface.lines)

@@ -1,5 +1,10 @@
 import ettk
+
 import numpy as np
+import imutils
+import cv2
+
+from .conftest import PAGES_DIR
 
 # Page Aruco Size
 PAGE_HEIGHT_SIZE = 27
@@ -53,7 +58,8 @@ unwrap1_config = ettk.SurfaceConfig(
     },
     height=PAGE_HEIGHT_SIZE,
     width=PAGE_WIDTH_SIZE,
-    scale=(W_SCALE, H_SCALE)
+    scale=(W_SCALE, H_SCALE),
+    template=imutils.resize(cv2.imread(str(PAGES_DIR / 'unwrap' / 'unwrapping-1.png')), width=500)
 )
 unwrap2_config = ettk.SurfaceConfig(
     id='unwrap2',
@@ -91,8 +97,10 @@ unwrap2_config = ettk.SurfaceConfig(
     },
     height=PAGE_HEIGHT_SIZE,
     width=PAGE_WIDTH_SIZE,
-    scale=(W_SCALE, H_SCALE)
+    scale=(W_SCALE, H_SCALE),
+    template=imutils.resize(cv2.imread(str(PAGES_DIR / 'unwrap' / 'unwrapping-2.png')), width=500)
 )
+
 unwrap3_config = ettk.SurfaceConfig(
     id='unwrap3',
     aruco_config={
@@ -129,7 +137,8 @@ unwrap3_config = ettk.SurfaceConfig(
     },
     height=PAGE_HEIGHT_SIZE,
     width=PAGE_WIDTH_SIZE,
-    scale=(W_SCALE, H_SCALE)
+    scale=(W_SCALE, H_SCALE),
+    template=imutils.resize(cv2.imread(str(PAGES_DIR / 'unwrap' / 'unwrapping-3.png')), width=500)
 )
 
 suffrage1_config = ettk.SurfaceConfig(
@@ -168,8 +177,10 @@ suffrage1_config = ettk.SurfaceConfig(
     },
     height=PAGE_HEIGHT_SIZE,
     width=PAGE_WIDTH_SIZE,
-    scale=(W_SCALE, H_SCALE)
+    scale=(W_SCALE, H_SCALE),
+    template=imutils.resize(cv2.imread(str(PAGES_DIR / 'suffrage' / 'suffrage-1.png')), width=500)
 )
+
 suffrage2_config = ettk.SurfaceConfig(
     id='suffrage2',
     aruco_config={
@@ -206,7 +217,8 @@ suffrage2_config = ettk.SurfaceConfig(
     },
     height=PAGE_HEIGHT_SIZE,
     width=PAGE_WIDTH_SIZE,
-    scale=(W_SCALE, H_SCALE)
+    scale=(W_SCALE, H_SCALE),
+    template=imutils.resize(cv2.imread(str(PAGES_DIR / 'suffrage' / 'suffrage-2.png')), width=500)
 )
 suffrage3_config = ettk.SurfaceConfig(
     id='suffrage3',
@@ -244,7 +256,8 @@ suffrage3_config = ettk.SurfaceConfig(
     },
     height=PAGE_HEIGHT_SIZE,
     width=PAGE_WIDTH_SIZE,
-    scale=(W_SCALE, H_SCALE)
+    scale=(W_SCALE, H_SCALE),
+    template=imutils.resize(cv2.imread(str(PAGES_DIR / 'suffrage' / 'suffrage-3.png')), width=500)
 )
 mooca1_config = ettk.SurfaceConfig(
     id='mooca1',
@@ -282,7 +295,8 @@ mooca1_config = ettk.SurfaceConfig(
     },
     height=PAGE_HEIGHT_SIZE,
     width=PAGE_WIDTH_SIZE,
-    scale=(W_SCALE, H_SCALE)
+    scale=(W_SCALE, H_SCALE),
+    template=imutils.resize(cv2.imread(str(PAGES_DIR / 'mooca' / 'MOOCA-01.png')), width=500)
 )
 mooca2_config = ettk.SurfaceConfig(
     id='mooca2',
@@ -320,7 +334,8 @@ mooca2_config = ettk.SurfaceConfig(
     },
     height=PAGE_HEIGHT_SIZE,
     width=PAGE_WIDTH_SIZE,
-    scale=(W_SCALE, H_SCALE)
+    scale=(W_SCALE, H_SCALE),
+    template=imutils.resize(cv2.imread(str(PAGES_DIR / 'mooca' / 'MOOCA-02.png')), width=500)
 )
 mooca3_config = ettk.SurfaceConfig(
     id='mooca3',
@@ -358,7 +373,8 @@ mooca3_config = ettk.SurfaceConfig(
     },
     height=PAGE_HEIGHT_SIZE,
     width=PAGE_WIDTH_SIZE,
-    scale=(W_SCALE, H_SCALE)
+    scale=(W_SCALE, H_SCALE),
+    template=imutils.resize(cv2.imread(str(PAGES_DIR / 'mooca' / 'MOOCA-03.png')), width=500)
 )
 mooca4_config = ettk.SurfaceConfig(
     id='mooca4',
@@ -396,7 +412,8 @@ mooca4_config = ettk.SurfaceConfig(
     },
     height=PAGE_HEIGHT_SIZE,
     width=PAGE_WIDTH_SIZE,
-    scale=(W_SCALE, H_SCALE)
+    scale=(W_SCALE, H_SCALE),
+    template=imutils.resize(cv2.imread(str(PAGES_DIR / 'mooca' / 'MOOCA-04.png')), width=500)
 )
 mooca5_config = ettk.SurfaceConfig(
     id='mooca5',
@@ -434,7 +451,8 @@ mooca5_config = ettk.SurfaceConfig(
     },
     height=PAGE_HEIGHT_SIZE,
     width=PAGE_WIDTH_SIZE,
-    scale=(W_SCALE, H_SCALE)
+    scale=(W_SCALE, H_SCALE),
+    template=imutils.resize(cv2.imread(str(PAGES_DIR / 'mooca' / 'MOOCA-05.png')), width=500)
 )
 mooca6_config = ettk.SurfaceConfig(
     id='mooca6',
@@ -472,7 +490,8 @@ mooca6_config = ettk.SurfaceConfig(
     },
     height=PAGE_HEIGHT_SIZE,
     width=PAGE_WIDTH_SIZE,
-    scale=(W_SCALE, H_SCALE)
+    scale=(W_SCALE, H_SCALE),
+    template=imutils.resize(cv2.imread(str(PAGES_DIR / 'mooca' / 'MOOCA-06.png')), width=500)
 )
 mooca7_config = ettk.SurfaceConfig(
     id='mooca7',
@@ -510,7 +529,8 @@ mooca7_config = ettk.SurfaceConfig(
     },
     height=PAGE_HEIGHT_SIZE,
     width=PAGE_WIDTH_SIZE,
-    scale=(W_SCALE, H_SCALE)
+    scale=(W_SCALE, H_SCALE),
+    template=imutils.resize(cv2.imread(str(PAGES_DIR / 'mooca' / 'MOOCA-07.png')), width=500)
 )
 mooca8_config = ettk.SurfaceConfig(
     id='mooca8',
@@ -548,7 +568,8 @@ mooca8_config = ettk.SurfaceConfig(
     },
     height=PAGE_HEIGHT_SIZE,
     width=PAGE_WIDTH_SIZE,
-    scale=(W_SCALE, H_SCALE)
+    scale=(W_SCALE, H_SCALE),
+    template=imutils.resize(cv2.imread(str(PAGES_DIR / 'mooca' / 'MOOCA-08.png')), width=500)
 )
 mooca9_config = ettk.SurfaceConfig(
     id='mooca9',
@@ -586,7 +607,8 @@ mooca9_config = ettk.SurfaceConfig(
     },
     height=PAGE_HEIGHT_SIZE,
     width=PAGE_WIDTH_SIZE,
-    scale=(W_SCALE, H_SCALE)
+    scale=(W_SCALE, H_SCALE),
+    template=imutils.resize(cv2.imread(str(PAGES_DIR / 'mooca' / 'MOOCA-09.png')), width=500)
 )
 mooca10_config = ettk.SurfaceConfig(
     id='mooca10',
@@ -624,7 +646,8 @@ mooca10_config = ettk.SurfaceConfig(
     },
     height=PAGE_HEIGHT_SIZE,
     width=PAGE_WIDTH_SIZE,
-    scale=(W_SCALE, H_SCALE)
+    scale=(W_SCALE, H_SCALE),
+    template=imutils.resize(cv2.imread(str(PAGES_DIR / 'mooca' / 'MOOCA-10.png')), width=500)
 )
 
 monitor_config = ettk.SurfaceConfig(

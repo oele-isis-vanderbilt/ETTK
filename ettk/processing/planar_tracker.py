@@ -1,5 +1,6 @@
 # Built-in Imports
 from typing import Dict, List, Optional, Tuple
+
 import logging
 
 # Third-party
@@ -14,7 +15,7 @@ from .. import utils
 from .aruco_tracker import ArucoTracker, ArucoResult
 from .template_database import TemplateDatabase
 from .filters import PoseKalmanFilter
-from .hough_refiner import HoughRefiner, HoughResult
+from .homography_refiner import HomographyRefiner
 
 import pdb
 logger = logging.getLogger('ettk')
@@ -148,7 +149,10 @@ class PlanarTracker:
 
         # Surface filters
         self.surface_filters: Dict[str, PoseKalmanFilter] = {}
-        self.refiner = HoughRefiner()
+
+        # Homography refiner
+        templates = {s.id: s.template for s in surface_configs if s.template is not None}
+        self.refiner = HomographyRefiner(templates)
 
     def step(self, frame: np.ndarray):
         
@@ -250,8 +254,9 @@ class PlanarTracker:
                 hypotheses=hypotheses
             )
 
-            # Refine
-            # surface_entry = self.refiner.refine(surface_entry)
+            # Perform homography
+            if surface_config.template is not None:
+                homography_results = self.refiner.find_homography(surface_config.id)
 
             # Save the surface entry
             planar_results.surfaces[surface_config.id] = surface_entry

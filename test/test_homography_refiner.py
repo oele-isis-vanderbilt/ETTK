@@ -74,9 +74,9 @@ def test_homography_refiner(rec_data):
         ret, frame = cap.read()
 
         # Processing
-        results = homo_refiner.step(frame, ['suffrage1'])
-        if 'suffrage1' in results.entries:
-            corners = results.entries['suffrage1'].corners
+        results = homo_refiner.step(frame, 'suffrage1')
+        if results:
+            corners = results.corners
             draw = ettk.utils.vis.draw_surface_corners(frame, corners)
 
         if ret:
