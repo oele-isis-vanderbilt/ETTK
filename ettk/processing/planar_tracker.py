@@ -72,7 +72,7 @@ class PlanarResult:
 class WeightConfig:
     aruco: float = 0.2
     surface: float = 0.8
-    homo: float = 1
+    homo: float = 0.95
 
 
 def rotation_vector_to_quaternion(rot_vec):
@@ -239,14 +239,13 @@ class PlanarTracker:
                     h_tvec = homography_results.tvec
                     rvec = rvec * (1 - self.weight_config.homo) + h_rvec * self.weight_config.homo
                     tvec = tvec * (1 - self.weight_config.homo) + h_tvec * self.weight_config.homo
-                    
             else:
                 homography_results = None
             
             # Apply Kalman filter
-            # if surface_config.id not in self.surface_filters:
-            #     self.surface_filters[surface_config.id] = PoseKalmanFilter()
-            # rvec, tvec = self.surface_filters[surface_config.id].process(combined_rvec, combined_tvec)
+            if surface_config.id not in self.surface_filters:
+                self.surface_filters[surface_config.id] = PoseKalmanFilter()
+            rvec, tvec = self.surface_filters[surface_config.id].process(combined_rvec, combined_tvec)
 
             # Compute corners
             corners3D = np.array([

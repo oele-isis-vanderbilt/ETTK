@@ -186,7 +186,9 @@ class HomographyRefiner:
         M = self.filter.process(M)
 
         # Compute RT from H
-        w_r, h_r = self.surfaces[template_name].scale
+        surface = self.surfaces[template_name]
+        w, h = surface.width, surface.height
+        w_r, h_r = surface.scale
         obj_pts = np.array([
             [0, 0, 0], 
             [w*w_r, 0, 0], 
@@ -195,9 +197,7 @@ class HomographyRefiner:
         ]).astype(np.float32)
         success, rvec, tvec = cv2.solvePnP(obj_pts, warped, MATRIX_COEFFICIENTS, DISTORTION_COEFFICIENTS, flags=cv2.SOLVEPNP_IPPE)
         
-        if success:
-            tvec = tvec
-        else:
+        if not success:
             rvec = np.empty((3,1))
             tvec = np.empty((3,1))
 

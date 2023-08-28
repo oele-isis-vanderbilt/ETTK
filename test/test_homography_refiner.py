@@ -83,12 +83,14 @@ def test_homography_refiner(rec_data):
 
             # Compute corners
             if results.success:
-                w, h = results.size
+                # w, h = results.size
+                w, h = suffrage1_config.width, suffrage1_config.height
+                w_r, h_r = suffrage1_config.scale
                 corners3D = np.array([
                     [0, 0, 0],
-                    [w*W_SCALE, 0, 0],
-                    [w*W_SCALE, h*H_SCALE, 0],
-                    [0, h*H_SCALE, 0]
+                    [w*w_r, 0, 0],
+                    [w*w_r, h*h_r, 0],
+                    [0, h*h_r, 0]
                 ]).astype(np.float32)
                 corners2D, _ = cv2.projectPoints(corners3D, results.rvec, results.tvec, MATRIX_COEFFICIENTS, DISTORTION_COEFFICIENTS)
                 draw = ettk.utils.vis.draw_surface_corners(draw, corners2D)
