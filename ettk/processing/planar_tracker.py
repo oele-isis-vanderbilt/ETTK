@@ -12,6 +12,7 @@ import numpy as np
 
 # Internal Imports
 from .. import utils
+from .surface_config import SurfaceConfig, ArucoConfig
 from .aruco_tracker import ArucoTracker, ArucoResult
 from .template_database import TemplateDatabase
 from .filters import PoseKalmanFilter
@@ -41,23 +42,6 @@ DISTORTION_COEFFICIENTS = np.array(
 L = 0.23
 H = 0.15
 MS = 0.04
-
-
-@dataclass
-class ArucoConfig:
-    id: int
-    offset_rvec: np.ndarray
-    offset_tvec: np.ndarray
-
-
-@dataclass
-class SurfaceConfig:
-    id: str
-    aruco_config: Dict[int, ArucoConfig]
-    height: float
-    width: float
-    scale: Tuple[float] = (1.0, 1.0)
-    template: Optional[np.ndarray] = None # (H,W,3)
 
 
 @dataclass
@@ -167,8 +151,8 @@ class PlanarTracker:
         self.surface_filters: Dict[str, PoseKalmanFilter] = {}
 
         # Homography refiner
-        templates = {s.id: s.template for s in surface_configs if s.template is not None}
-        self.refiner = HomographyRefiner(templates)
+        surfaces = {s.id: s for s in surface_configs}
+        self.refiner = HomographyRefiner(surfaces)
 
     def step(self, frame: np.ndarray):
         
@@ -250,31 +234,19 @@ class PlanarTracker:
             # Perform homography
             if surface_config.template is not None:
                 homography_results = self.refiner.find_homography(surface_config.id)
-                if homography_results is not None:
-
-                    w, h = homography_results.size
-                    obj_pts = np.array([
-                        [0, 0, 0], 
-                        [w, 0, 0], 
-                        [w, h, 0], 
-                        [0, h, 0]
-                    ]).astype(np.float32)
-                    success, h_rvec, h_tvec = cv2.solvePnP(obj_pts, homography_results.corners, MATRIX_COEFFICIENTS, DISTORTION_COEFFICIENTS, flags=cv2.SOLVEPNP_IPPE)
-                    if success:
-                        logger.debug(f"Surface {surface_config.id} homography success")
-                        rvec = h_rvec
-                        tvec = h_tvec * 1/2250
-                        # rvec = rvec * (1 - self.weight_config.homo) + h_rvec * self.weight_config.homo
-                        # tvec = tvec * (1 - self.weight_config.homo) + (h_tvec/2250) * self.weight_config.homo
-                        # rvec, tvec = h_rvec, h_tvec * 1/2250
+                if homography_results is not None and homography_results.success:
+                    h_rvec = homography_results.rvec
+                    h_tvec = homography_results.tvec
+                    rvec = rvec * (1 - self.weight_config.homo) + h_rvec * self.weight_config.homo
+                    tvec = tvec * (1 - self.weight_config.homo) + h_tvec * self.weight_config.homo
                     
             else:
                 homography_results = None
             
             # Apply Kalman filter
-            if surface_config.id not in self.surface_filters:
-                self.surface_filters[surface_config.id] = PoseKalmanFilter()
-            rvec, tvec = self.surface_filters[surface_config.id].process(combined_rvec, combined_tvec)
+            # if surface_config.id not in self.surface_filters:
+            #     self.surface_filters[surface_config.id] = PoseKalmanFilter()
+            # rvec, tvec = self.surface_filters[surface_config.id].process(combined_rvec, combined_tvec)
 
             # Compute corners
             corners3D = np.array([

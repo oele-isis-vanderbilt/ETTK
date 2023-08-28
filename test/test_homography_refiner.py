@@ -8,8 +8,11 @@ import numpy as np
 import cv2
 import ettk
 
-from .conftest import rec_data, PAGES_DIR, DATA_DIR
-from .surface_configs import trim_right, trim_bottom
+from .conftest import rec_data, PAGES_DIR, DATA_DIR, MATRIX_COEFFICIENTS, DISTORTION_COEFFICIENTS
+from .surface_configs import suffrage1_config
+
+W_SCALE = 1/105
+H_SCALE = 1/110
 
 
 def test_homography():
@@ -56,24 +59,14 @@ def test_homography():
 
     cv2.imshow("orb_match", res);
 
-    cv2.waitKey();cv2.destroyAllWindows()
+    cv2.waitKey(); cv2.destroyAllWindows()
 
 
 def test_homography_refiner(rec_data):
 
-    templates = {
-        'suffrage1': 
-        trim_bottom(
-            trim_right(
-                imutils.resize(cv2.imread(str(PAGES_DIR / 'suffrage' / 'suffrage-1.png')), width=500),
-                0.1
-            ),
-            0.175
-        )
-    }
-
     # Refiner
-    homo_refiner = ettk.HomographyRefiner(templates)
+    surfaces = {'suffrage1': suffrage1_config}
+    homo_refiner = ettk.HomographyRefiner(surfaces)
 
     cap, gaze = rec_data
 
@@ -83,8 +76,22 @@ def test_homography_refiner(rec_data):
         # Processing
         results = homo_refiner.step(frame, 'suffrage1')
         if results:
+
+            # Draw the homography corners
             corners = results.corners
             draw = ettk.utils.vis.draw_surface_corners(frame, corners)
+
+            # Compute corners
+            if results.success:
+                w, h = results.size
+                corners3D = np.array([
+                    [0, 0, 0],
+                    [w*W_SCALE, 0, 0],
+                    [w*W_SCALE, h*H_SCALE, 0],
+                    [0, h*H_SCALE, 0]
+                ]).astype(np.float32)
+                corners2D, _ = cv2.projectPoints(corners3D, results.rvec, results.tvec, MATRIX_COEFFICIENTS, DISTORTION_COEFFICIENTS)
+                draw = ettk.utils.vis.draw_surface_corners(draw, corners2D)
 
         if ret:
             cv2.imshow('frame', frame)

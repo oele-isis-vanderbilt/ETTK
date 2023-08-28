@@ -6,8 +6,28 @@ import numpy as np
 import cv2
 
 from .homography_kalman_filter import HomographyKalmanFilter
+from .surface_config import SurfaceConfig
 
 logger = logging.getLogger('ettk')
+
+
+# Constants
+MATRIX_COEFFICIENTS = np.array(
+    [
+        [910.5968017578125, 0, 958.43426513671875],
+        [0, 910.20758056640625, 511.6611328125],
+        [0, 0, 1],
+    ]
+)
+DISTORTION_COEFFICIENTS = np.array(
+    [
+        -0.055919282138347626,
+        0.079781122505664825,
+        -0.048538044095039368,
+        -0.00014426070265471935,
+        0.00044536130735650659,
+    ]
+)
 
 
 @dataclass
@@ -33,7 +53,10 @@ class HomographyResult:
     name: str
     H: np.ndarray
     corners: np.ndarray # (4,2)
-    size: Tuple[int, int] # width, height
+    success: bool
+    rvec: np.ndarray
+    tvec: np.ndarray
+    size: Tuple[int, int]
 
 
 def angle_between(v1, v2):
@@ -43,13 +66,14 @@ def angle_between(v1, v2):
 
 class HomographyRefiner:
 
-    def __init__(self, templates: Dict[str, np.ndarray], config: Optional[HomographyConfig] = None):
+    def __init__(self, surfaces: Dict[str, SurfaceConfig], config: Optional[HomographyConfig] = None):
 
         # Process inputs
         if not config:
             self.config = HomographyConfig()
         else:
             self.config = config
+        self.surfaces = surfaces
 
         # Create tools
         self.orb = cv2.ORB_create()
@@ -58,14 +82,17 @@ class HomographyRefiner:
 
         # Preprocess the templates
         self.templates: Dict[str, TemplateEntry] = {}
-        for template_name, template in templates.items():
+        for name, surface in self.surfaces.items():
+
+            if surface.template is None:
+                continue
             
-            gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+            gray = cv2.cvtColor(surface.template, cv2.COLOR_BGR2GRAY)
             kp, des = self.orb.detectAndCompute(gray, None)
 
-            self.templates[template_name] = TemplateEntry(
-                name=template_name,
-                template=template,
+            self.templates[name] = TemplateEntry(
+                name=name,
+                template=surface.template,
                 kp=kp,
                 des=des
             )
@@ -131,8 +158,7 @@ class HomographyRefiner:
         # Define the four corners of the template image (assuming img1 is the template)
         h, w = template.template.shape[:2]
         template_aspect_ratio = w / h
-        # corners_template = np.float32([[0, 0], [0, h-1], [w-1, h-1], [w-1, 0]]).reshape(-1, 1, 2)
-        corners_template = np.float32([[0, 0], [w-1, 0], [w-1, h-1], [0, h-1]]).reshape(-1, 1, 2)
+        corners_template = np.float32([[0, 0], [w, 0], [w, h], [0, h]]).reshape(-1, 1, 2)
         warped = cv2.perspectiveTransform(corners_template, M)
 
         # Compute aspect ratio
@@ -159,11 +185,30 @@ class HomographyRefiner:
         # Apply filtering
         M = self.filter.process(M)
 
+        # Compute RT from H
+        w_r, h_r = self.surfaces[template_name].scale
+        obj_pts = np.array([
+            [0, 0, 0], 
+            [w*w_r, 0, 0], 
+            [w*w_r, h*h_r, 0], 
+            [0, h*h_r, 0]
+        ]).astype(np.float32)
+        success, rvec, tvec = cv2.solvePnP(obj_pts, warped, MATRIX_COEFFICIENTS, DISTORTION_COEFFICIENTS, flags=cv2.SOLVEPNP_IPPE)
+        
+        if success:
+            tvec = tvec
+        else:
+            rvec = np.empty((3,1))
+            tvec = np.empty((3,1))
+
         # Create entry
         H = HomographyResult(
             name=template_name,
             H=M,
             corners=warped,
+            success=success,
+            rvec=rvec,
+            tvec=tvec,
             size=(w,h)
         )
 

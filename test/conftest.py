@@ -4,6 +4,7 @@ import os
 
 import pytest
 import cv2
+import numpy as np
 
 # CONSTANTS
 CWD = pathlib.Path(os.path.abspath(__file__)).parent
@@ -77,6 +78,25 @@ VIDEO_START_INDEX = 17500 # paper
 BLACK_MARGIN_SIZE = 50
 
 assert VIDEO_TOBII_REC_PATH.exists()
+
+
+# Constants
+MATRIX_COEFFICIENTS = np.array(
+    [
+        [910.5968017578125, 0, 958.43426513671875],
+        [0, 910.20758056640625, 511.6611328125],
+        [0, 0, 1],
+    ]
+)
+DISTORTION_COEFFICIENTS = np.array(
+    [
+        -0.055919282138347626,
+        0.079781122505664825,
+        -0.048538044095039368,
+        -0.00014426070265471935,
+        0.00044536130735650659,
+    ]
+)
 
 disable_loggers = [
     "matplotlib",
