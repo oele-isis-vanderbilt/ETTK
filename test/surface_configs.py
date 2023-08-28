@@ -741,7 +741,7 @@ monitor_config = ettk.SurfaceConfig(
         3: ettk.ArucoConfig(
             3,
             np.array([0, 0, np.pi/2]),
-            np.array([M_ARUCO_SIZE/2 + MONITOR_WIDTH_SIZE*0.8, MONITOR_HEIGHT_SIZE*0.8, 0.1])
+            np.array([M_ARUCO_SIZE/2 + MONITOR_WIDTH_SIZE*0.9, MONITOR_HEIGHT_SIZE, 0])
         ),
         4: ettk.ArucoConfig(
             4,
