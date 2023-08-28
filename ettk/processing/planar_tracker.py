@@ -88,6 +88,7 @@ class PlanarResult:
 class WeightConfig:
     aruco: float = 0.2
     surface: float = 0.8
+    homo: float = 1
 
 
 def rotation_vector_to_quaternion(rot_vec):
@@ -127,15 +128,20 @@ def average_quaternion(quaternions):
     # Normalize to get the final average quaternion
     avg_q /= np.linalg.norm(avg_q)
     return avg_q
+    
 
+def weighted_fusion(original_rvec, original_tvec, homography_rvec, homography_tvec, weight=0.5) -> Tuple[np.ndarray, np.ndarray]:
 
-def extract_RT_from_homography(K, H) -> Tuple[np.ndarray, np.ndarray]:
-    # Decompose the homography
-    retval, rotations, translations, normals = cv2.decomposeHomographyMat(H, K)
-    # Assume the first solution is the best (this should be improved in practice)
-    rvec, _ = cv2.Rodrigues(rotations[0])
-    tvec = translations[0]
-    return rvec, tvec
+    # Convert rvec to quaternion for fusion
+    original_quat = cv2.Rodrigues(original_rvec)[0]
+    homography_quat = cv2.Rodrigues(homography_rvec)[0]
+    
+    fused_quat = weight * original_quat + (1 - weight) * homography_quat
+    fused_rvec = cv2.Rodrigues(fused_quat)[0]
+    
+    fused_tvec = weight * original_tvec + (1 - weight) * homography_tvec
+    
+    return fused_rvec, fused_tvec
 
 
 class PlanarTracker:
@@ -163,19 +169,6 @@ class PlanarTracker:
         # Homography refiner
         templates = {s.id: s.template for s in surface_configs if s.template is not None}
         self.refiner = HomographyRefiner(templates)
-
-    def weighted_fusion(self, original_rvec, original_tvec, homography_rvec, homography_tvec, weight=0.5) -> Tuple[np.ndarray, np.ndarray]:
-
-        # Convert rvec to quaternion for fusion
-        original_quat = cv2.Rodrigues(original_rvec)[0]
-        homography_quat = cv2.Rodrigues(homography_rvec)[0]
-        
-        fused_quat = weight * original_quat + (1 - weight) * homography_quat
-        fused_rvec = cv2.Rodrigues(fused_quat)[0]
-        
-        fused_tvec = weight * original_tvec + (1 - weight) * homography_tvec
-        
-        return fused_rvec, fused_tvec
 
     def step(self, frame: np.ndarray):
         
@@ -253,7 +246,31 @@ class PlanarTracker:
                 if success:
                     combined_rvec = self.weight_config.aruco*combined_rvec + self.weight_config.surface*rvec
                     combined_tvec = self.weight_config.aruco*combined_tvec + self.weight_config.surface*tvec
+ 
+            # Perform homography
+            if surface_config.template is not None:
+                homography_results = self.refiner.find_homography(surface_config.id)
+                if homography_results is not None:
 
+                    w, h = homography_results.size
+                    obj_pts = np.array([
+                        [0, 0, 0], 
+                        [w, 0, 0], 
+                        [w, h, 0], 
+                        [0, h, 0]
+                    ]).astype(np.float32)
+                    success, h_rvec, h_tvec = cv2.solvePnP(obj_pts, homography_results.corners, MATRIX_COEFFICIENTS, DISTORTION_COEFFICIENTS, flags=cv2.SOLVEPNP_IPPE)
+                    if success:
+                        logger.debug(f"Surface {surface_config.id} homography success")
+                        rvec = h_rvec
+                        tvec = h_tvec * 1/2250
+                        # rvec = rvec * (1 - self.weight_config.homo) + h_rvec * self.weight_config.homo
+                        # tvec = tvec * (1 - self.weight_config.homo) + (h_tvec/2250) * self.weight_config.homo
+                        # rvec, tvec = h_rvec, h_tvec * 1/2250
+                    
+            else:
+                homography_results = None
+            
             # Apply Kalman filter
             if surface_config.id not in self.surface_filters:
                 self.surface_filters[surface_config.id] = PoseKalmanFilter()
@@ -274,26 +291,9 @@ class PlanarTracker:
                 rvec=rvec,
                 tvec=tvec,
                 corners=corners2D,
-                hypotheses=hypotheses
+                hypotheses=hypotheses,
+                homography=homography_results
             )
-
-            # Perform homography
-            if surface_config.template is not None:
-                homography_results = self.refiner.find_homography(surface_config.id)
-                if homography_results is not None:
-                    surface_entry.homography = homography_results
-                    # import pdb; pdb.set_trace()
-                    # rvec, tvec = extract_RT_from_homography(
-                    #     MATRIX_COEFFICIENTS, 
-                    #     planar_results.homography.H
-                    # )
-                    # surface_entry.rvec, surface_entry.tvec = self.weighted_fusion(
-                    #     rvec, 
-                    #     tvec, 
-                    #     surface_entry.rvec, 
-                    #     surface_entry.tvec, 
-                    #     weight=0.5
-                    # )
 
             # Save the surface entry
             planar_results.surfaces[surface_config.id] = surface_entry

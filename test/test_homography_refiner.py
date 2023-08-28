@@ -9,6 +9,7 @@ import cv2
 import ettk
 
 from .conftest import rec_data, PAGES_DIR, DATA_DIR
+from .surface_configs import trim_right, trim_bottom
 
 
 def test_homography():
@@ -61,7 +62,14 @@ def test_homography():
 def test_homography_refiner(rec_data):
 
     templates = {
-        'suffrage1': imutils.resize(cv2.imread(str(PAGES_DIR / 'suffrage' / 'suffrage-1.png')), width=500),
+        'suffrage1': 
+        trim_bottom(
+            trim_right(
+                imutils.resize(cv2.imread(str(PAGES_DIR / 'suffrage' / 'suffrage-1.png')), width=500),
+                0.1
+            ),
+            0.175
+        )
     }
 
     # Refiner

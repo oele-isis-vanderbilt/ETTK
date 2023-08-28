@@ -123,9 +123,9 @@ def test_planar_tracking(rec_data):
             draw = ettk.utils.vis.draw_surface_corners(draw, surface.corners)
 
             # If homo, draw it
-            if surface.homography is not None:
-                corners = surface.homography.corners
-                draw = ettk.utils.vis.draw_surface_corners(draw, corners)
+            # if surface.homography is not None:
+            #     corners = surface.homography.corners
+            #     draw = ettk.utils.vis.draw_surface_corners(draw, corners)
 
         # Checking FPS
         toc = time.perf_counter()

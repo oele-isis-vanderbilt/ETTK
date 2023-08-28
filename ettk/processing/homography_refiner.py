@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Tuple
 from dataclasses import dataclass, field
 import logging
 
@@ -33,6 +33,7 @@ class HomographyResult:
     name: str
     H: np.ndarray
     corners: np.ndarray # (4,2)
+    size: Tuple[int, int] # width, height
 
 
 def angle_between(v1, v2):
@@ -138,7 +139,7 @@ class HomographyRefiner:
         width = np.linalg.norm(warped[0] - warped[1])
         height = np.linalg.norm(warped[1] - warped[2])
         aspect_ratio = width / height
-        logger.debug(f"Aspect ratio: {aspect_ratio}")
+        # logger.debug(f"Aspect ratio: {aspect_ratio}")
         if (aspect_ratio > 1) or (aspect_ratio < 0.15):
             return None
 
@@ -162,7 +163,8 @@ class HomographyRefiner:
         H = HomographyResult(
             name=template_name,
             H=M,
-            corners=warped
+            corners=warped,
+            size=(w,h)
         )
 
         return H
