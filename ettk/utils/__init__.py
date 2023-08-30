@@ -10,7 +10,7 @@ from .vis import (
     draw_text,
     draw_axis,
 )
-from .tools import dhash
+from .tools import dhash, surface_map_points
 from .preprocessing import increase_brightness
 from .threed import project_points
 
@@ -27,4 +27,5 @@ __all__ = [
     "dhash",
     "increase_brightness",
     "render",
+    "surface_map_points"
 ]

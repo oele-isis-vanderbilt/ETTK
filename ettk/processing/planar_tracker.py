@@ -12,11 +12,10 @@ import numpy as np
 
 # Internal Imports
 from .. import utils
-from .surface_config import SurfaceConfig, ArucoConfig
-from .aruco_tracker import ArucoTracker, ArucoResult
-from .template_database import TemplateDatabase
+from .aruco_tracker import ArucoTracker
+from .homography_refiner import HomographyRefiner
 from .filters import PoseKalmanFilter
-from .homography_refiner import HomographyRefiner, HomographyResult
+from ..types import PlanarResult, Hypothesis, SurfaceEntry, WeightConfig, HomographyResult, SurfaceConfig, ArucoConfig
 
 import pdb
 logger = logging.getLogger('ettk')
@@ -42,37 +41,6 @@ DISTORTION_COEFFICIENTS = np.array(
 L = 0.23
 H = 0.15
 MS = 0.04
-
-
-@dataclass
-class Hypothesis: # by an aruco
-    id: int
-    rvec: np.ndarray # (3,1)
-    tvec: np.ndarray # (3,1)
-
-
-@dataclass
-class SurfaceEntry:
-    id: str
-    rvec: np.ndarray # (3,1)
-    tvec: np.ndarray # (3,1)
-    corners: np.ndarray # (4,2)
-    hypotheses: List[Hypothesis] = field(default_factory=list)
-    lines: np.ndarray = field(default_factory=lambda:np.empty((0,1,2))) # (N,1,2)
-    homography: Optional[HomographyResult] = None
-
-
-@dataclass
-class PlanarResult:
-    aruco: ArucoResult
-    surfaces: Dict[str, SurfaceEntry]
-
-
-@dataclass
-class WeightConfig:
-    aruco: float = 0.2
-    surface: float = 0.8
-    homo: float = 0.95
 
 
 def rotation_vector_to_quaternion(rot_vec):
@@ -263,7 +231,8 @@ class PlanarTracker:
                 tvec=tvec,
                 corners=corners2D,
                 hypotheses=hypotheses,
-                homography=homography_results
+                homography=homography_results,
+                config=surface_config
             )
 
             # Save the surface entry

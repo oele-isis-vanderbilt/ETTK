@@ -5,11 +5,13 @@ import os
 import pytest
 import cv2
 import numpy as np
+import ettk
 
 # CONSTANTS
 CWD = pathlib.Path(os.path.abspath(__file__)).parent
 PAGES_DIR = CWD / 'config' / 'pages'
 DATA_DIR = CWD / 'data'
+OUTPUT_DIR = CWD / 'output'
 
 # PAPER_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_v4_rec1'
 # PAPER_TOBII_REC_PATH = CWD/'data'/'recordings'/'tobii_paper_v4_rec2'
@@ -48,7 +50,6 @@ VIDEO_TOBII_REC_PATH = (
 VIDEO_START_INDEX = 0 # MONITOR
 # VIDEO_START_INDEX = 17000 # SUFFRAGE
 
-
 # VIDEO_TOBII_REC_PATH = (
 #     CWD
 #     / "data"
@@ -56,6 +57,7 @@ VIDEO_START_INDEX = 0 # MONITOR
 #     / 'tg3'
 #     / '20230425T170919Z'
 # )
+# VIDEO_START_INDEX = 0
 # VIDEO_START_INDEX = 5000 # paper
 # VIDEO_START_INDEX = 10000 # monitor
 # VIDEO_START_INDEX = 37800 # MOOCA
@@ -130,6 +132,6 @@ def get_rec_data(path):
     cap.set(cv2.CAP_PROP_POS_FRAMES, VIDEO_START_INDEX)
 
     # Load other eye-tracking information
-    # gaze = ettk.utils.tobii.load_gaze_data(path)
-    gaze = None
+    gaze = ettk.utils.tobii.load_gaze_data(path)
+    # gaze = None
     return cap, gaze

@@ -5,6 +5,10 @@
 # YOLO weights
 yolov*.pt
 
+# Video
+*.mp4
+*.avi
+
 # Path Specific
 thirdparty/
 test/data/

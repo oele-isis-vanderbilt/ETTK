@@ -9,6 +9,7 @@ import numpy as np
 import cv2
 
 from .filters import RotationVectorKalmanFilter
+from ..types import ArucoEntry, ArucoResult
 
 logger = logging.getLogger('ettk')
 
@@ -28,22 +29,6 @@ DISTORTION_COEFFICIENTS = np.array(
         0.00044536130735650659,
     ]
 )
-
-@dataclass
-class ArucoResult:
-    corners: np.ndarray = field(default_factory=lambda: np.empty((0,4))) # (M,4,2)
-    ids: np.ndarray = field(default_factory=lambda: np.empty((0,1))) # (N,1)
-    rvec: np.ndarray = field(default_factory=lambda: np.empty((0,3,1))) # (N,3,1)
-    tvec: np.ndarray = field(default_factory=lambda: np.empty((0,3,1))) # (N,3,1)
-
-
-@dataclass
-class ArucoEntry:
-    id: int
-    rvec: np.ndarray # (3,1)
-    tvec: np.ndarray # (3,1)
-    corners: np.ndarray # (4,2)
-    counts: int = 0
 
 
 def align_x_axis_towards_camera(rvec):

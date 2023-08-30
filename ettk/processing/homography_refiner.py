@@ -6,7 +6,7 @@ import numpy as np
 import cv2
 
 from .homography_kalman_filter import HomographyKalmanFilter
-from .surface_config import SurfaceConfig
+from ..types import HomographyResult, TemplateEntry, HomographyConfig, SurfaceConfig
 
 logger = logging.getLogger('ettk')
 
@@ -28,35 +28,6 @@ DISTORTION_COEFFICIENTS = np.array(
         0.00044536130735650659,
     ]
 )
-
-
-@dataclass
-class TemplateEntry:
-    name: str
-    template: np.ndarray
-    kp: np.ndarray
-    des: np.ndarray
-
-
-@dataclass
-class HomographyConfig:
-    min_matches: int = 10
-    min_inliers: int = 10
-    ransac_threshold: float = 5.0
-    ransac_max_trials: int = 1000
-    aspect_ratio_threshold: float = 0.3
-    angle_threshold: float = 20.0
-
-
-@dataclass
-class HomographyResult:
-    name: str
-    H: np.ndarray
-    corners: np.ndarray # (4,2)
-    success: bool
-    rvec: np.ndarray
-    tvec: np.ndarray
-    size: Tuple[int, int]
 
 
 def angle_between(v1, v2):
