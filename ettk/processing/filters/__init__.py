@@ -1,2 +1,3 @@
 from .rotation_vector_kalman_filter import RotationVectorKalmanFilter
 from .pose_kalman_filter import PoseKalmanFilter
+from .homography_kalman_filter import HomographyKalmanFilter

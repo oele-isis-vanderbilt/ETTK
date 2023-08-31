@@ -10,6 +10,7 @@ from typing import Literal, List
 from dataclasses import asdict
 
 # Third-party Imports
+import pandas as pd
 import imutils
 import cv2
 import pytest
@@ -107,7 +108,7 @@ def test_planar_tracking(rec_data):
 
     # Tracker
     # aruco_tracker = ettk.ArucoTracker(aruco_omit=[5, 36, 37, 0, 1, 2, 3, 4, 5, 6])
-    aruco_tracker = ettk.ArucoTracker(aruco_omit=[5, 2, 1, 4, 6, 36, 37])
+    aruco_tracker = ettk.ArucoTracker(aruco_omit=[5, 2, 0, 1, 4, 6, 36, 37])
     planar_tracker = ettk.PlanarTracker(
         surface_configs=list(surface_configs.values()), 
         aruco_tracker=aruco_tracker
@@ -225,7 +226,7 @@ def test_planar_tracking_step_by_gaze(rec_data):
     }
 
     # Tracker
-    aruco_tracker = ettk.ArucoTracker(aruco_omit=[5, 2, 1, 4, 6, 36, 37])
+    aruco_tracker = ettk.ArucoTracker(aruco_omit=[5, 2, 1, 0, 4, 6, 36, 37])
     planar_tracker = ettk.PlanarTracker(
         surface_configs=list(surface_configs.values()), 
         aruco_tracker=aruco_tracker
@@ -234,6 +235,8 @@ def test_planar_tracking_step_by_gaze(rec_data):
     # Keep track of the PlanarResults
     planar_results = None
     draw = np.ones((1080, 1920+1000, 3)).astype(np.uint8) * 100
+    exit_flag = False
+    df = {'timestamp': [], 'surface_id': [], 'x': [], 'y': [], 'uncertainty': []}
 
     for i, row in gaze.iterrows():
         
@@ -309,14 +312,20 @@ def test_planar_tracking_step_by_gaze(rec_data):
                 writer.write(draw)
 
                 if key & 0xFF == ord("q"):
-                    sys.exit()
+                    exit_flag = True
+                    break
             else:
                 break
+
+        if exit_flag:
+            break
 
         # Obtain the XY of the fixation
         if planar_results:
             fix_result = ettk.utils.surface_map_points(planar_results, fix)
             if fix_result:
+
+                # Get information
                 surface_config = surface_configs[fix_result.surface_id]
                 pt = fix_result.pt
 
@@ -333,12 +342,37 @@ def test_planar_tracking_step_by_gaze(rec_data):
                     pt = pt * RATIO
                     img = np.zeros((int(s_h), int(s_w), 3))
 
+                # Compute relative fix
+                rel_fix = (pt[0] / s_w, pt[1] / s_h)
+                
+                # Store data
+                df['timestamp'].append(timestamp)
+                df['surface_id'].append(fix_result.surface_id)
+                df['x'].append(rel_fix[0])
+                df['y'].append(rel_fix[1])
+                df['uncertainty'].append(fix_result.uncertainty)
+
+                # Reset background
+                draw[0:1080, 1920:] = 100
+
                 draw_surface = ettk.utils.vis.draw_fix((pt[0], pt[1]), img)
                 d_h, d_w = draw_surface.shape[:2]
                 y = d_h//2
                 x = 1920 + 1000//2 - d_w//2
                 draw[y:y+d_h, x:x+d_w] = draw_surface
-                # cv2.imshow('surface', draw_surface)
 
+            else:
+                df['timestamp'].append(timestamp)
+                df['surface_id'].append(None)
+                df['x'].append(-1)
+                df['y'].append(-1)
+                df['uncertainty'].append(-1)
+
+    # Close everything
     writer.release()
     cv2.destroyAllWindows()
+
+    # Save the data
+    df = pd.DataFrame(df)
+    df = df.round(decimals=3)
+    df.to_csv(str(OUTPUT_DIR/'planar_tracking.csv'), index=False)

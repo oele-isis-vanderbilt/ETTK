@@ -93,6 +93,7 @@ class SurfaceEntry:
     rvec: np.ndarray # (3,1)
     tvec: np.ndarray # (3,1)
     corners: np.ndarray # (4,2)
+    uncertainty: float
     config: SurfaceConfig
     hypotheses: List[Hypothesis] = field(default_factory=list)
     lines: np.ndarray = field(default_factory=lambda:np.empty((0,1,2))) # (N,1,2)
@@ -116,4 +117,5 @@ class WeightConfig:
 class FixInSurfaceResult:
     surface_id: str
     pt: np.ndarray # (2,)
+    uncertainty: float
 

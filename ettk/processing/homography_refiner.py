@@ -5,7 +5,7 @@ import logging
 import numpy as np
 import cv2
 
-from .homography_kalman_filter import HomographyKalmanFilter
+from .filters import HomographyKalmanFilter
 from ..types import HomographyResult, TemplateEntry, HomographyConfig, SurfaceConfig
 
 logger = logging.getLogger('ettk')

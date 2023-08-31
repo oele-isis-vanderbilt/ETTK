@@ -213,7 +213,7 @@ class PlanarTracker:
             # Apply Kalman filter
             if surface_config.id not in self.surface_filters:
                 self.surface_filters[surface_config.id] = PoseKalmanFilter()
-            rvec, tvec = self.surface_filters[surface_config.id].process(combined_rvec, combined_tvec)
+            rvec, tvec, uncertainty = self.surface_filters[surface_config.id].process(combined_rvec, combined_tvec)
 
             # Compute corners
             corners3D = np.array([
@@ -230,6 +230,7 @@ class PlanarTracker:
                 rvec=rvec,
                 tvec=tvec,
                 corners=corners2D,
+                uncertainty=uncertainty,
                 hypotheses=hypotheses,
                 homography=homography_results,
                 config=surface_config

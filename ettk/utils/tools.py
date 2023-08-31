@@ -56,7 +56,8 @@ def surface_map_points(planar_results: PlanarResult, fix: Tuple[int, int]) -> Op
         # Create container
         fix_result = FixInSurfaceResult(
             surface_id=surface.id,
-            pt=fix_dst
+            pt=fix_dst,
+            uncertainty=surface.uncertainty
         )
 
         return fix_result
