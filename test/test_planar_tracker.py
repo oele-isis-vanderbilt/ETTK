@@ -165,10 +165,10 @@ def test_planar_tracking(rec_data):
 
             # Checking FPS
             toc = time.perf_counter()
-            fps = 1 / (toc - tic)
+            fps_performance = 1 / (toc - tic)
 
             # Draw FPS
-            draw = cv2.putText(draw, f"FPS: {fps:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+            draw = cv2.putText(draw, f"FPS: {fps_performance:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
 
             # Testing
             # draw = ettk.utils.vis.draw_lines(draw, surface.lines)
@@ -184,6 +184,146 @@ def test_planar_tracking(rec_data):
 
         # Update
         current_frame_index += 1
+
+    writer.release()
+    cv2.destroyAllWindows()
+
+
+def test_planar_tracking_step_by_gaze(rec_data):
+
+    # Get original video
+    cap, gaze = rec_data
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    current_frame_index = 0
+    cap.set(cv2.CAP_PROP_POS_FRAMES, current_frame_index)
+    w, h = 1920, 1080
+
+    # Video Writer
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    writer = cv2.VideoWriter(str(OUTPUT_DIR/'planar_tracking.avi'), fourcc, fps, (1920, 1080))
+
+    # Surface Configs
+    surface_configs = {
+        'unwrap1': unwrap1_config,
+        'unwrap2': unwrap2_config,
+        'unwrap3': unwrap3_config,
+        'suffrage1': suffrage1_config,
+        'suffrage2': suffrage2_config,
+        'suffrage3': suffrage3_config,
+        'mooca1': mooca1_config,
+        'mooca2': mooca2_config,
+        'mooca3': mooca3_config,
+        'mooca4': mooca4_config,
+        'mooca5': mooca5_config,
+        'mooca6': mooca6_config,
+        'mooca7': mooca7_config,
+        'mooca8': mooca8_config,
+        'mooca9': mooca9_config,
+        'mooca10': mooca10_config,
+        'monitor': monitor_config
+    }
+
+    # Tracker
+    aruco_tracker = ettk.ArucoTracker(aruco_omit=[5, 2, 1, 4, 6])
+    planar_tracker = ettk.PlanarTracker(
+        surface_configs=list(surface_configs.values()), 
+        aruco_tracker=aruco_tracker
+    )
+
+    # Keep track of the PlanarResults
+    planar_results = None
+
+    for i, row in gaze.iterrows():
+        
+        # Get the fixation
+        try:
+            raw_fix = row["gaze2d"]
+        except IndexError:
+            raw_fix = [0, 0]
+
+        if isinstance(raw_fix, str):
+            raw_fix = ast.literal_eval(raw_fix)
+
+        fix = (int(raw_fix[0] * w), int(raw_fix[1] * h))
+
+        # First, check if we need to update our planar results
+        timestamp = row.timestamp
+        expected_frame_index = int(timestamp * fps)
+        # import pdb; pdb.set_trace()
+
+        # If we expected a new frame, then perform image processing
+        while (current_frame_index <= expected_frame_index or current_frame_index == 0):
+
+            try:
+                ret, frame = cap.read()
+            except Exception as e:
+                break
+           
+            # Keep track of clocks
+            delta = expected_frame_index - current_frame_index
+            logger.debug(f"{expected_frame_index} - {current_frame_index} = {delta}")
+            current_frame_index += 1
+            # import pdb; pdb.set_trace()
+            
+            if ret:
+
+                # Checking FPS
+                tic = time.perf_counter()
+
+                # Processing
+                if delta <= 0:
+                    planar_results = planar_tracker.step(frame)
+
+                # Draw
+                frame = ettk.utils.vis.draw_fix(fix, frame)
+                frame = ettk.utils.vis.draw_aruco_markers(frame , **asdict(planar_results.aruco), with_ids=True)
+                for surface in planar_results.surfaces.values():
+                    frame = ettk.utils.draw_axis(frame , surface.rvec, surface.tvec)
+
+                    # Debugging
+                    # for hypothesis in surface.hypotheses:
+                    #     draw = ettk.utils.draw_axis(draw, hypothesis.rvec, hypothesis.tvec)
+                
+                    frame = ettk.utils.vis.draw_surface_corners(frame , surface.corners)
+
+                    # If homo, draw it
+                    # if surface.homography is not None:
+                    #     corners = surface.homography.corners
+                    #     draw = ettk.utils.vis.draw_surface_corners(draw, corners)
+
+                # Checking FPS
+                toc = time.perf_counter()
+                fps_performance = 1 / (toc - tic)
+
+                # Draw FPS
+                frame = cv2.putText(frame , f"FPS: {fps_performance:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+
+                # Testing
+                # frame = ettk.utils.vis.draw_lines(frame , surface.lines)
+
+                cv2.imshow('frame', imutils.resize(frame , width=1920))
+                key = cv2.waitKey(1)
+                writer.write(frame )
+
+                if key & 0xFF == ord("q"):
+                    sys.exit()
+            else:
+                break
+
+        # Obtain the XY of the fixation
+        if planar_results:
+            fix_result = ettk.utils.surface_map_points(planar_results, fix)
+            if fix_result:
+                surface_config = surface_configs[fix_result.surface_id]
+                h, w = surface_config.height, surface_config.width
+                pt = fix_result.pt
+                RATIO = 50
+                h *= RATIO
+                w *= RATIO
+                pt = pt * RATIO
+                img = np.zeros((int(h), int(w), 3))
+                draw_surface = ettk.utils.vis.draw_fix((pt[0], pt[1]), img)
+                cv2.imshow('surface', draw_surface)
 
     writer.release()
     cv2.destroyAllWindows()
