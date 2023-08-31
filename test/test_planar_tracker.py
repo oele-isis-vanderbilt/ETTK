@@ -201,7 +201,7 @@ def test_planar_tracking_step_by_gaze(rec_data):
 
     # Video Writer
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    writer = cv2.VideoWriter(str(OUTPUT_DIR/'planar_tracking.avi'), fourcc, fps, (1920, 1080))
+    writer = cv2.VideoWriter(str(OUTPUT_DIR/'planar_tracking.avi'), fourcc, fps, (1920+1000, 1080))
 
     # Surface Configs
     surface_configs = {
@@ -233,6 +233,7 @@ def test_planar_tracking_step_by_gaze(rec_data):
 
     # Keep track of the PlanarResults
     planar_results = None
+    draw = np.ones((1080, 1920+1000, 3)).astype(np.uint8) * 100
 
     for i, row in gaze.iterrows():
         
@@ -298,13 +299,14 @@ def test_planar_tracking_step_by_gaze(rec_data):
 
                 # Draw FPS
                 frame = cv2.putText(frame , f"FPS: {fps_performance:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+                draw[0:1080, 0:1920] = frame
 
                 # Testing
                 # frame = ettk.utils.vis.draw_lines(frame , surface.lines)
 
-                cv2.imshow('frame', imutils.resize(frame , width=1920))
+                cv2.imshow('draw', draw)
                 key = cv2.waitKey(1)
-                writer.write(frame )
+                writer.write(draw)
 
                 if key & 0xFF == ord("q"):
                     sys.exit()
@@ -325,14 +327,18 @@ def test_planar_tracking_step_by_gaze(rec_data):
                     pt *= 20
                 else:
                     s_h, s_w = surface_config.height, surface_config.width
-                    RATIO = 50
+                    RATIO = 30
                     s_h *= RATIO
                     s_w *= RATIO
                     pt = pt * RATIO
                     img = np.zeros((int(s_h), int(s_w), 3))
 
                 draw_surface = ettk.utils.vis.draw_fix((pt[0], pt[1]), img)
-                cv2.imshow('surface', draw_surface)
+                d_h, d_w = draw_surface.shape[:2]
+                y = d_h//2
+                x = 1920 + 1000//2 - d_w//2
+                draw[y:y+d_h, x:x+d_w] = draw_surface
+                # cv2.imshow('surface', draw_surface)
 
     writer.release()
     cv2.destroyAllWindows()
