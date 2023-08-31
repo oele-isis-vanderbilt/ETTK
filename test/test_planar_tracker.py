@@ -107,7 +107,7 @@ def test_planar_tracking(rec_data):
 
     # Tracker
     # aruco_tracker = ettk.ArucoTracker(aruco_omit=[5, 36, 37, 0, 1, 2, 3, 4, 5, 6])
-    aruco_tracker = ettk.ArucoTracker(aruco_omit=[5, 2, 1, 4, 6])
+    aruco_tracker = ettk.ArucoTracker(aruco_omit=[5, 2, 1, 4, 6, 36, 37])
     planar_tracker = ettk.PlanarTracker(
         surface_configs=list(surface_configs.values()), 
         aruco_tracker=aruco_tracker
@@ -153,13 +153,13 @@ def test_planar_tracking(rec_data):
             fix_result = ettk.utils.surface_map_points(planar_results, fix)
             if fix_result:
                 surface_config = surface_configs[fix_result.surface_id]
-                h, w = surface_config.height, surface_config.width
+                s_h, s_w = surface_config.height, surface_config.width
                 pt = fix_result.pt
                 RATIO = 50
-                h *= RATIO
-                w *= RATIO
+                s_h *= RATIO
+                s_w *= RATIO
                 pt = pt * RATIO
-                img = np.zeros((int(h), int(w), 3))
+                img = np.zeros((int(s_h), int(s_w), 3))
                 draw_surface = ettk.utils.vis.draw_fix((pt[0], pt[1]), img)
                 cv2.imshow('surface', draw_surface)
 
@@ -194,8 +194,9 @@ def test_planar_tracking_step_by_gaze(rec_data):
     # Get original video
     cap, gaze = rec_data
     fps = cap.get(cv2.CAP_PROP_FPS)
-    current_frame_index = 0
-    cap.set(cv2.CAP_PROP_POS_FRAMES, current_frame_index)
+    current_frame_index = cap.get(cv2.CAP_PROP_POS_FRAMES)
+    current_time = current_frame_index / fps
+    gaze = gaze[gaze.timestamp >= current_time].reset_index(drop=True)
     w, h = 1920, 1080
 
     # Video Writer
@@ -224,7 +225,7 @@ def test_planar_tracking_step_by_gaze(rec_data):
     }
 
     # Tracker
-    aruco_tracker = ettk.ArucoTracker(aruco_omit=[5, 2, 1, 4, 6])
+    aruco_tracker = ettk.ArucoTracker(aruco_omit=[5, 2, 1, 4, 6, 36, 37])
     planar_tracker = ettk.PlanarTracker(
         surface_configs=list(surface_configs.values()), 
         aruco_tracker=aruco_tracker
@@ -245,11 +246,11 @@ def test_planar_tracking_step_by_gaze(rec_data):
             raw_fix = ast.literal_eval(raw_fix)
 
         fix = (int(raw_fix[0] * w), int(raw_fix[1] * h))
+        # import pdb; pdb.set_trace()
 
         # First, check if we need to update our planar results
         timestamp = row.timestamp
         expected_frame_index = int(timestamp * fps)
-        # import pdb; pdb.set_trace()
 
         # If we expected a new frame, then perform image processing
         while (current_frame_index <= expected_frame_index or current_frame_index == 0):
@@ -261,7 +262,7 @@ def test_planar_tracking_step_by_gaze(rec_data):
            
             # Keep track of clocks
             delta = expected_frame_index - current_frame_index
-            logger.debug(f"{expected_frame_index} - {current_frame_index} = {delta}")
+            # logger.debug(f"{expected_frame_index} - {current_frame_index} = {delta}")
             current_frame_index += 1
             # import pdb; pdb.set_trace()
             
@@ -315,13 +316,21 @@ def test_planar_tracking_step_by_gaze(rec_data):
             fix_result = ettk.utils.surface_map_points(planar_results, fix)
             if fix_result:
                 surface_config = surface_configs[fix_result.surface_id]
-                h, w = surface_config.height, surface_config.width
                 pt = fix_result.pt
-                RATIO = 50
-                h *= RATIO
-                w *= RATIO
-                pt = pt * RATIO
-                img = np.zeros((int(h), int(w), 3))
+
+                # Get drawing surface
+                if isinstance(surface_config.template, np.ndarray):
+                    img = surface_config.template
+                    s_h, s_w = img.shape[:2]
+                    pt *= 20
+                else:
+                    s_h, s_w = surface_config.height, surface_config.width
+                    RATIO = 50
+                    s_h *= RATIO
+                    s_w *= RATIO
+                    pt = pt * RATIO
+                    img = np.zeros((int(s_h), int(s_w), 3))
+
                 draw_surface = ettk.utils.vis.draw_fix((pt[0], pt[1]), img)
                 cv2.imshow('surface', draw_surface)
 
