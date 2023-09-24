@@ -50,7 +50,6 @@ def surface_map_points(planar_results: PlanarResult, fix: Tuple[int, int]) -> Op
         fix_dst = (
             cv2.perspectiveTransform(fix_pt, np.linalg.inv(M))
             .flatten()
-            .astype(np.int32)
         )
 
         # Create container
