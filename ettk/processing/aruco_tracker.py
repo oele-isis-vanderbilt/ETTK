@@ -92,6 +92,8 @@ class ArucoTracker:
         distortion_coefficients: Optional[np.ndarray] = None,
         aruco_omit: Optional[List[int]] = [],
         counts_required: int = 15,
+        normalize: bool = True,
+        gamma_correction: bool = True
     ):
 
         # Save parameters
@@ -104,6 +106,8 @@ class ArucoTracker:
 
         self.aruco_omit = aruco_omit
         self.counts_required = counts_required
+        self.normalize = normalize
+        self.gamma_correction = gamma_correction
 
         # Aruco initialization
         self._aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_250)
@@ -117,6 +121,14 @@ class ArucoTracker:
         self.aruco_filters: Dict[int, RotationVectorKalmanFilter] = {}
 
     def step(self, frame: np.ndarray, repair: bool = True) -> ArucoResult:
+
+        # Convert RGB to GRAY
+        if len(frame.shape) == 3:
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+
+        # Normalize
+        if self.normalize:
+            frame = cv2.normalize(frame, None, 0, 255, cv2.NORM_MINMAX)
 
         # Getting frame's markers
         corners, ids, _ = self._aruco_detector.detectMarkers(frame)

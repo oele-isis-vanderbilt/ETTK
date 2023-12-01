@@ -1,10 +1,12 @@
 import pdb
+import logging
 from typing import List, Tuple, Optional
 
 # Third-party Imports
 import numpy as np
 import cv2
 
+logger = logging.getLogger('ettk')
 
 # Constants
 FIX_RADIUS = 10
@@ -64,6 +66,7 @@ def project_fix(self, fix: Tuple[int, int]):
 def draw_fix(fix: Tuple[int, int], img: np.ndarray = None):
 
     # Draw eye-tracking into the original video frame
+    fix = (int(fix[0]), int(fix[1]))
     draw_frame = cv2.circle(img.copy(), fix, FIX_RADIUS, FIX_COLOR, FIX_THICKNESS)
 
     return draw_frame

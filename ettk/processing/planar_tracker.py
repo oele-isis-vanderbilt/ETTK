@@ -43,6 +43,14 @@ H = 0.15
 MS = 0.04
 
 
+# Dataclass
+@dataclass
+class SurfaceFilterContainer:
+    id: str
+    filter: PoseKalmanFilter
+    ttl: int = 5
+
+
 def rotation_vector_to_quaternion(rot_vec):
     theta = np.linalg.norm(rot_vec)
     if theta < 1e-10:
@@ -116,7 +124,7 @@ class PlanarTracker:
         self.surface_configs = surface_configs
 
         # Surface filters
-        self.surface_filters: Dict[str, PoseKalmanFilter] = {}
+        self.surface_filters: Dict[str, SurfaceFilterContainer] = {}
 
         # Homography refiner
         surfaces = {s.id: s for s in surface_configs}
@@ -140,6 +148,11 @@ class PlanarTracker:
             ids = aruco_results.ids[:,0].tolist()
             surface_arucos = [a for a in ids if a in surface_config.aruco_config]
             if not surface_arucos:
+                if surface_config.id in self.surface_filters:
+                    if self.surface_filters[surface_config.id].ttl > 0:
+                        self.surface_filters[surface_config.id].ttl -= 1
+                    else:
+                        del self.surface_filters[surface_config.id]
                 continue
 
             # Compute surface pose
@@ -212,8 +225,12 @@ class PlanarTracker:
             
             # Apply Kalman filter
             if surface_config.id not in self.surface_filters:
-                self.surface_filters[surface_config.id] = PoseKalmanFilter()
-            rvec, tvec, uncertainty = self.surface_filters[surface_config.id].process(combined_rvec, combined_tvec)
+                surface_filter = SurfaceFilterContainer(
+                    id=surface_config.id,
+                    filter = PoseKalmanFilter()
+                )
+                self.surface_filters[surface_config.id] = surface_filter
+            rvec, tvec, uncertainty = self.surface_filters[surface_config.id].filter.process(combined_rvec, combined_tvec)
 
             # Compute corners
             corners3D = np.array([

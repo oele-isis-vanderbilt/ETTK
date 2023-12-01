@@ -170,6 +170,7 @@ def test_planar_tracking(rec_data):
 
             # Draw FPS
             draw = cv2.putText(draw, f"FPS: {fps_performance:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+            draw = cv2.putText(draw, f"Frame: {current_frame_index}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
 
             # Testing
             # draw = ettk.utils.vis.draw_lines(draw, surface.lines)
