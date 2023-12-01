@@ -1,7 +1,9 @@
 import logging
 import pathlib
 import os
+from typing import Optional
 
+import pandas as pd
 import pytest
 import cv2
 import numpy as np
@@ -79,6 +81,11 @@ VIDEO_TOBII_REC_PATH = (
     / 'tg3'
     / '20230418T181553Z'
 )
+FIXATION_TOBII_PATH = (
+    CWD
+    / 'data'
+    / '220245.csv'
+)
 # VIDEO_START_INDEX = 0
 VIDEO_START_INDEX = 36000 # paper
 
@@ -139,6 +146,10 @@ def pytest_configure():
 def rec_data():
     return get_rec_data(VIDEO_TOBII_REC_PATH)
 
+@pytest.fixture
+def rec_data_export():
+    return get_rec_data_export(VIDEO_TOBII_REC_PATH)
+
 
 def get_rec_data(path):
 
@@ -154,4 +165,44 @@ def get_rec_data(path):
     # Load other eye-tracking information
     gaze = ettk.utils.tobii.load_gaze_data(path)
     # gaze = None
+    return cap, gaze
+
+
+def get_rec_data_export(path):
+    
+    # Load the video and get a single frame
+    video_path = path / "scenevideo.mp4"
+    assert video_path.exists()
+
+    cap = cv2.VideoCapture(str(video_path), 0)
+    length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    assert length > VIDEO_START_INDEX + 1
+    cap.set(cv2.CAP_PROP_POS_FRAMES, VIDEO_START_INDEX)
+
+    # Load other eye-tracking information
+    gaze = pd.read_csv(FIXATION_TOBII_PATH)
+    gaze['timestamp'] = gaze['Recording timestamp'] / 1000000
+    gaze = gaze[gaze['Eye movement type'] == 'Fixation']
+    gaze = gaze[['timestamp', 'Fixation point X', 'Fixation point Y']]
+    gaze.rename(columns={'Fixation point X': 'x', 'Fixation point Y': 'y'}, inplace=True)
+
+    # Combine fixations to have start and end times
+    prev_row: Optional[pd.Series] = None
+    fixation_data = {'timestamp': [], 'end_timestamp': [], 'x': [], 'y': []}
+    for _, row in gaze.iterrows():
+        
+        if isinstance(prev_row, pd.Series):
+            if (prev_row['x'], prev_row['y']) == (row['x'], row['y']):
+                fixation_data['end_timestamp'][-1] = row['timestamp']
+                prev_row = row
+                continue
+
+        fixation_data['timestamp'].append(row['timestamp'])
+        fixation_data['end_timestamp'].append(row['timestamp'])
+        fixation_data['x'].append(row['x'])
+        fixation_data['y'].append(row['y'])
+        prev_row = row
+
+    gaze = pd.DataFrame(fixation_data)
+
     return cap, gaze

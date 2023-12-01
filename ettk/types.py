@@ -102,8 +102,8 @@ class SurfaceEntry:
 
 @dataclass
 class PlanarResult:
-    aruco: ArucoResult
-    surfaces: Dict[str, SurfaceEntry]
+    aruco: ArucoResult = field(default_factory=ArucoResult)
+    surfaces: Dict[str, SurfaceEntry] = field(default_factory=dict)
 
 
 @dataclass
