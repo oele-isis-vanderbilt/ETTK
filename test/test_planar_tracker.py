@@ -328,35 +328,44 @@ def test_planar_tracking_step_by_gaze(rec_data):
 
                 # Get information
                 surface_config = surface_configs[fix_result.surface_id]
-                pt = fix_result.pt
+                # pt = fix_result.pt
 
-                # Get drawing surface
                 if isinstance(surface_config.template, np.ndarray):
                     img = surface_config.template
-                    s_h, s_w = img.shape[:2]
-                    pt *= 20
                 else:
                     s_h, s_w = surface_config.height, surface_config.width
                     RATIO = 30
                     s_h *= RATIO
                     s_w *= RATIO
-                    pt = pt * RATIO
                     img = np.zeros((int(s_h), int(s_w), 3))
 
-                # Compute relative fix
-                rel_fix = (pt[0] / s_w, pt[1] / s_h)
+                # # Get drawing surface
+                # if isinstance(surface_config.template, np.ndarray):
+                #     img = surface_config.template
+                #     s_h, s_w = img.shape[:2]
+                #     pt *= 20
+                # else:
+                #     s_h, s_w = surface_config.height, surface_config.width
+                #     RATIO = 30
+                #     s_h *= RATIO
+                #     s_w *= RATIO
+                #     pt = pt * RATIO
+                #     img = np.zeros((int(s_h), int(s_w), 3))
+
+                # # Compute relative fix
+                # rel_fix = (pt[0] / s_w, pt[1] / s_h)
                 
                 # Store data
                 df['timestamp'].append(timestamp)
                 df['surface_id'].append(fix_result.surface_id)
-                df['x'].append(rel_fix[0])
-                df['y'].append(rel_fix[1])
+                df['x'].append(fix_result.rel_pt[0])
+                df['y'].append(fix_result.rel_pt[1])
                 df['uncertainty'].append(fix_result.uncertainty)
 
                 # Reset background
                 draw[0:1080, 1920:] = 100
 
-                draw_surface = ettk.utils.vis.draw_fix((pt[0], pt[1]), img)
+                draw_surface = ettk.utils.vis.draw_fix((fix_result.pt[0], fix_result.pt[1]), img)
                 d_h, d_w = draw_surface.shape[:2]
                 y = d_h//2
                 x = 1920 + 1000//2 - d_w//2

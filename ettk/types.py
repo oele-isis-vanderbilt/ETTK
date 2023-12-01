@@ -117,5 +117,6 @@ class WeightConfig:
 class FixInSurfaceResult:
     surface_id: str
     pt: np.ndarray # (2,)
+    rel_pt: np.ndarray # (2,)
     uncertainty: float
 

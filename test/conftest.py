@@ -57,20 +57,30 @@ OUTPUT_DIR = CWD / 'output'
 #     / 'tg3'
 #     / '20230425T170919Z'
 # )
-VIDEO_START_INDEX = 0
+# VIDEO_START_INDEX = 0
 # VIDEO_START_INDEX = 5000 # paper
 # VIDEO_START_INDEX = 10000 # monitor
 # VIDEO_START_INDEX = 37800 # MOOCA
 
+# VIDEO_TOBII_REC_PATH = (
+#     CWD
+#     / "data"
+#     / '220244_chimerapy-2023_04_13_12_55_01-7733'
+#     / 'tg3'
+#     / '20230413T151408Z'
+# )
+# VIDEO_START_INDEX = 0
+# VIDEO_START_INDEX = 1000 # paper
+
 VIDEO_TOBII_REC_PATH = (
     CWD
     / "data"
-    / '220244_chimerapy-2023_04_13_12_55_01-7733'
+    / '220245_chimerapy-2023_04_18_13_11_16-3070'
     / 'tg3'
-    / '20230413T151408Z'
+    / '20230418T181553Z'
 )
 # VIDEO_START_INDEX = 0
-VIDEO_START_INDEX = 1000 # paper
+VIDEO_START_INDEX = 36000 # paper
 
 # VIDEO_TOBII_REC_PATH = (
 #     CWD
